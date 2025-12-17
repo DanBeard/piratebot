@@ -1,0 +1,31 @@
+# PirateBot - Interactive Halloween Pirate Decoration
+# Python 3.10+ recommended
+
+# Computer Vision
+ultralytics>=8.0.0          # YOLOv8 for person detection
+opencv-python>=4.8.0        # Webcam capture and image processing
+
+# Vision Language Model (Moondream2)
+transformers>=4.36.0
+torch>=2.0.0
+accelerate>=0.25.0
+pillow>=10.0.0
+
+# LLM Client (Ollama)
+aiohttp>=3.9.0              # Async HTTP client for Ollama API
+httpx>=0.25.0               # Alternative sync HTTP client
+
+# Text-to-Speech
+# kokoro-tts                # Install separately - see README
+
+# Avatar Communication
+websockets>=12.0            # WebSocket client for Godot communication
+
+# Utilities
+numpy>=1.24.0
+pyyaml>=6.0                 # Configuration file parsing
+python-dotenv>=1.0.0        # Environment variables
+
+# Development & Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

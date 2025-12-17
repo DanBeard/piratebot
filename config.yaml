@@ -1,0 +1,83 @@
+# PirateBot Configuration
+# Adjust GPU assignments and model paths for your system
+
+# GPU Assignments (use nvidia-smi to check your GPU IDs)
+gpu:
+  display: 0          # GPU for display, YOLO, and TTS
+  vlm: 1              # GPU for Moondream2 vision model
+  llm: 2              # GPU for Ollama LLM
+
+# Webcam Settings
+webcam:
+  device_id: 0        # /dev/video0
+  width: 1280
+  height: 720
+  fps: 30
+
+# Person Detection (YOLOv8)
+detector:
+  model: "yolov8n.pt"           # nano model for speed (yolov8s.pt for accuracy)
+  confidence_threshold: 0.5     # Minimum confidence to trigger
+  min_person_area: 5000         # Minimum bounding box area (pixels^2)
+  cooldown_seconds: 30          # Time between interactions per person
+
+# Vision Language Model (Moondream2)
+vlm:
+  model_id: "vikhyatk/moondream2"
+  revision: "2025-01-09"        # Pin to specific revision for stability
+  device: "cuda"
+  prompt: "Describe this person's Halloween costume in one brief sentence. Focus on what character or thing they are dressed as."
+
+# Language Model (Ollama)
+llm:
+  base_url: "http://localhost:11434"
+  model: "llama3.2:3b"          # Fast 3B model, or use "mistral" for 7B
+  max_tokens: 100               # Keep responses short
+  temperature: 0.8              # Some creativity for variety
+
+# Text-to-Speech (Kokoro)
+tts:
+  model: "kokoro-v0_19"
+  voice: "af_sky"               # Try different voices: am_adam, af_nicole, etc.
+  speed: 1.0
+  output_dir: "godot_project/assets/audio"
+
+# Avatar (Godot WebSocket)
+avatar:
+  host: "localhost"
+  port: 9876
+
+# Prompts
+prompts:
+  system: |
+    You are Captain Barnacle Bill, a friendly pirate who loves Halloween!
+    You speak with a pirate accent using words like "Arrr", "matey", "ahoy",
+    "shiver me timbers", and "blimey".
+
+    Your job is to comment on trick-or-treaters' costumes in a fun, family-friendly way.
+    Keep responses SHORT (1-2 sentences max). Be enthusiastic and encouraging!
+
+    Examples:
+    - "Arrr, a mighty fine skeleton ye be! Ye'd fit right in on me ghost ship!"
+    - "Blimey! A wee mermaid! Best stay out of me fishing nets, matey!"
+    - "Shiver me timbers, a superhero! Even pirates need heroes sometimes!"
+
+  user_template: |
+    A trick-or-treater just arrived! Here's what I see: {costume_description}
+
+    Give them a short, fun pirate comment about their costume!
+
+# Idle behavior (when no one is around)
+idle:
+  enabled: true
+  phrases:
+    - "Arrr, where be all the little scallywags tonight?"
+    - "Any brave souls out there lookin' fer treasure... I mean candy?"
+    - "*adjusts eyepatch* These old eyes be waitin' fer some costumes!"
+  min_interval_seconds: 45
+  max_interval_seconds: 120
+
+# Logging
+logging:
+  level: INFO
+  file: "piratebot.log"

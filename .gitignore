@@ -1,0 +1,285 @@
+# =============================================================================
+# PirateBot .gitignore
+# =============================================================================
+
+# =============================================================================
+# Python
+# =============================================================================
+
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.env.local
+*.env
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# JetBrains IDEs (PyCharm, IntelliJ, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# Godot
+# =============================================================================
+
+# Godot 4 specific
+godot_project/.godot/
+
+# Godot exported builds
+godot_project/export/
+godot_project/builds/
+*.pck
+*.exe
+*.x86_64
+*.x86
+*.dmg
+*.app/
+
+# Godot import cache (regenerated automatically)
+godot_project/.import/
+
+# Mono (C# in Godot)
+godot_project/.mono/
+godot_project/data_*/
+
+# =============================================================================
+# Generated Files
+# =============================================================================
+
+# Generated audio files
+godot_project/assets/audio/*.wav
+godot_project/assets/audio/*.mp3
+godot_project/assets/audio/*.ogg
+audio_output/
+test_audio/
+*.wav
+*.mp3
+*.ogg
+
+# But keep placeholder/example files
+!godot_project/assets/audio/.gitkeep
+
+# Downloaded models (large files)
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+models/
+
+# YOLO downloads
+yolov8*.pt
+runs/
+
+# HuggingFace cache
+.cache/
+huggingface/
+
+# Generated viseme data
+*.json.visemes
+
+# Screenshots/captures from detection
+detection_frame.jpg
+captures/
+screenshots/
+
+# =============================================================================
+# Logs
+# =============================================================================
+
+*.log
+piratebot.log
+logs/
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Secrets / Credentials (should never be committed)
+# =============================================================================
+
+# API keys, credentials
+*.pem
+*.key
+credentials.json
+secrets.yaml
+secrets.yml
+.secrets
+
+# Local config overrides (if you have them)
+config.local.yaml
+config.local.yml
+
+# =============================================================================
+# Large Assets (consider using Git LFS instead)
+# =============================================================================
+
+# 3D models (usually large)
+# Uncomment if you don't want to track these
+# godot_project/assets/pirate_model/*.glb
+# godot_project/assets/pirate_model/*.gltf
+# godot_project/assets/pirate_model/*.fbx
+# *.blend
+# *.blend1
+
+# Textures (if very large)
+# *.png
+# *.jpg
+# *.jpeg
+# *.tga
+# *.psd
+
+# =============================================================================
+# Temporary / Build files
+# =============================================================================
+
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Profiling
+*.prof
+*.lprof
+
+# =============================================================================
+# Documentation builds
+# =============================================================================
+
+docs/_build/
+site/
