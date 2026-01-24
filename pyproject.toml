@@ -22,6 +22,7 @@ mac = [
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
     "soundfile>=0.12.0",
+    "pillow>=10.0.0",  # Required by mlx-audio
     "pyttsx3>=2.90",  # Fallback TTS
 ]
 
