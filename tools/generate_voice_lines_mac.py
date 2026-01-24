@@ -213,8 +213,10 @@ class VoiceLineGeneratorMac:
                 )
 
             logger.info(f"  Model: {model_id}")
+            logger.info("  Downloading/loading model (this may take a few minutes first time)...")
             self._tts_model = load_model(model_id)
             logger.info("  Model loaded successfully!")
+            logger.info("  Ready to generate pirate voice lines!")
 
             return True
 
@@ -273,19 +275,24 @@ class VoiceLineGeneratorMac:
     def _generate_voice_design_results(self, text: str):
         """Generate audio using VoiceDesign with pirate voice description."""
         # Qwen3-TTS VoiceDesign works best with specific acoustic/emotional descriptors
-        # Classic pirate = West Country/Bristol accent (Robert Newton as Long John Silver)
+        # Blend of classic (Robert Newton's Long John Silver) and modern (Geoffrey Rush's
+        # Barbossa, Bill Nighy's Davy Jones) pirate voice archetypes
         pirate_voice_instruct = (
-            "Male, 55 years old, deep bass range, extremely gravelly and raspy voice "
-            "with heavy vocal fry. Thick West Country English accent (Bristol/Cornwall). "
-            "Speaks slowly and dramatically with theatrical menace. Voice sounds damaged "
-            "from decades of shouting orders and drinking rum - rough, weathered, hoarse. "
-            "Delivers lines with hearty, booming energy but sinister undertones."
+            "Male, 58 years old, deep bass range, extremely gravelly and raspy voice "
+            "with heavy vocal fry and a menacing growl. Thick West Country English accent "
+            "(Bristol/Cornwall) like Captain Barbossa from Pirates of the Caribbean. "
+            "Speaks with theatrical villainy and dramatic pauses like Geoffrey Rush. "
+            "Voice is damaged and weathered - rough, hoarse, sinister yet darkly humorous. "
+            "Has the intimidating rumble of Davy Jones but the sardonic wit of a cunning pirate captain."
         )
-        return list(self._tts_model.generate_voice_design(
+        logger.info(f"  Generating: '{text[:50]}...'")
+        results = list(self._tts_model.generate_voice_design(
             text=text,
             language="English",
             instruct=pirate_voice_instruct,
         ))
+        logger.info(f"  Generated {len(results)} audio segment(s)")
+        return results
 
     def _generate_with_voice_design(self, text: str, output_path: Path) -> bool:
         """Fallback generation using VoiceDesign model."""
@@ -340,14 +347,16 @@ class VoiceLineGeneratorMac:
             # Ensure output directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
+            logger.info(f"Generating audio for: {output_path.name}")
+
             # Generate audio using appropriate method based on model type
             if self._model_type == "base" and self._has_voice_sample:
                 # Use Base model with voice cloning
-                # ref_audio must be loaded as mlx array, not a path string
+                logger.info("  Using voice cloning...")
                 ref_audio = self._load_reference_audio()
                 ref_text = self._load_reference_text()
                 if ref_audio is None:
-                    logger.warning("Failed to load reference audio, falling back to VoiceDesign")
+                    logger.warning("  Failed to load reference audio, falling back to VoiceDesign")
                     return self._generate_with_voice_design(text, output_path)
                 results = list(self._tts_model.generate(
                     text=text,
@@ -361,7 +370,7 @@ class VoiceLineGeneratorMac:
             # Combine all audio segments
             audio_segments = [r.audio for r in results if r.audio is not None]
             if not audio_segments:
-                logger.error("No audio generated")
+                logger.error("  No audio generated!")
                 return False
 
             # Concatenate segments and convert to numpy
@@ -372,9 +381,11 @@ class VoiceLineGeneratorMac:
 
             # Get sample rate from model
             sr = self._tts_model.sample_rate
+            duration = len(audio) / sr
 
             # Save to file
             sf.write(str(output_path), audio, sr)
+            logger.info(f"  Saved: {output_path.name} ({duration:.1f}s)")
 
             # Clear MLX cache periodically to avoid memory buildup
             mx.clear_cache()
