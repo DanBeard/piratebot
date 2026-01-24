@@ -82,27 +82,43 @@ class VoiceLineGenerator:
             return True
 
         try:
-            from qwen_tts import QwenTTS
+            from qwen_tts import Qwen3TTSModel
+            import torch
 
             logger.info(f"Loading Qwen3-TTS model ({self.model_size})...")
 
             # Map model size to model ID
-            model_id = {
-                "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-                "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-            }.get(self.model_size, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
-
-            self._tts_model = QwenTTS(model_id, device=self.device)
-
-            # Load voice sample for cloning
+            # - Base model: for voice cloning (generate_voice_clone)
+            # - CustomVoice model: for instruction-based generation (generate_custom_voice)
             if self.voice_sample_path.exists():
-                logger.info(f"Loading voice sample: {self.voice_sample_path}")
-                self._tts_model.set_reference_audio(str(self.voice_sample_path))
+                # Use Base model for voice cloning
+                model_id = {
+                    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+                    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+                }.get(self.model_size, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+            else:
+                # Use CustomVoice model for instruction-based generation
+                model_id = {
+                    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+                    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",  # 0.6B doesn't have CustomVoice
+                }.get(self.model_size, "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
+
+            self._tts_model = Qwen3TTSModel.from_pretrained(
+                model_id,
+                device_map=self.device,
+                dtype=torch.bfloat16,  # Use bfloat16 for CUDA
+            )
+
+            # Store voice sample availability for use during generation
+            if self.voice_sample_path.exists():
+                logger.info(f"Voice sample available: {self.voice_sample_path}")
+                self._has_voice_sample = True
             else:
                 logger.warning(
                     f"Voice sample not found: {self.voice_sample_path}. "
                     f"Using default voice."
                 )
+                self._has_voice_sample = False
 
             return True
 
@@ -144,25 +160,38 @@ class VoiceLineGenerator:
             return self._generate_audio_fallback(text, output_path)
 
         try:
+            import soundfile as sf
+
             # Ensure output directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Generate audio
             logger.info(f"Generating: {text[:50]}...")
 
-            # Add pirate-style instruction for better prosody
-            instruction = (
-                "Speak with a gruff pirate voice, enthusiastic and theatrical, "
-                "with hearty emphasis on pirate words like 'Arrr' and 'matey'."
-            )
-
-            audio = self._tts_model.synthesize(
-                text,
-                instruction=instruction,
-            )
+            # Generate audio using appropriate method
+            if getattr(self, "_has_voice_sample", False):
+                # Use voice cloning with reference audio (Base model)
+                wavs, sr = self._tts_model.generate_voice_clone(
+                    text=text,
+                    language="English",
+                    ref_audio=str(self.voice_sample_path),
+                    x_vector_only_mode=True,  # Use speaker embedding only
+                )
+            else:
+                # Use custom voice with pirate-style instruction (CustomVoice model)
+                instruct = (
+                    "Speak with a gruff pirate voice, enthusiastic and theatrical, "
+                    "with hearty emphasis on pirate words like 'Arrr' and 'matey'."
+                )
+                wavs, sr = self._tts_model.generate_custom_voice(
+                    text=text,
+                    language="English",
+                    speaker="Ryan",  # Male voice
+                    instruct=instruct,
+                )
 
             # Save to file
-            self._tts_model.save_audio(audio, str(output_path))
+            sf.write(str(output_path), wavs[0], sr)
 
             logger.info(f"Saved: {output_path}")
             return True

@@ -13,8 +13,9 @@ sentence-transformers>=2.2.0
 torch>=2.0.0
 torchaudio>=2.0.0
 
-# Qwen3-TTS
-qwen-tts>=0.1.0
+# Qwen3-TTS (latest from PyPI)
+qwen-tts>=0.0.4
+soundfile>=0.12.0
 
 # HTTP clients (for Ollama)
 aiohttp>=3.9.0
