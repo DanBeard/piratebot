@@ -16,35 +16,29 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Mac voice line generation (Apple Silicon with MLX)
+# Mac/Apple Silicon - TTS with Qwen3 voice cloning (primary platform)
 mac = [
-    "mlx-audio[tts]>=0.3.0rc1",  # Need 0.3.0+ for qwen3_tts model
+    "mlx-audio[tts]>=0.3.0rc1",  # Qwen3-TTS with voice cloning
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
-    "pyttsx3>=2.90",
+    "soundfile>=0.12.0",
+    "pyttsx3>=2.90",  # Fallback TTS
 ]
 
-# Linux voice line generation (NVIDIA CUDA)
-linux = [
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "chromadb>=0.4.0",
-    "sentence-transformers>=2.2.0",
-    "qwen-tts>=0.0.4",
+# Full PirateBot runtime on Mac (detection, VLM, avatar, TTS)
+full = [
+    # TTS (same as mac)
+    "mlx-audio[tts]>=0.3.0rc1",
     "soundfile>=0.12.0",
     "pyttsx3>=2.90",
-]
-
-# Full PirateBot runtime (detection, VLM, avatar)
-full = [
-    "ultralytics>=8.0.0",
-    "opencv-python>=4.8.0",
-    "transformers>=4.36.0",
-    "torch>=2.0.0",
-    "accelerate>=0.25.0",
-    "pillow>=10.0.0",
+    # Voice line database
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
+    # Detection & Vision (uses MLX/CoreML on Mac)
+    "ultralytics>=8.0.0",
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    # Avatar communication
     "websockets>=12.0",
     "python-dotenv>=1.0.0",
 ]
@@ -58,8 +52,7 @@ dev = [
 
 [project.scripts]
 # Entry points for voice line tools
-piratebot-generate = "tools.generate_voice_lines:main"
-piratebot-generate-mac = "tools.generate_voice_lines_mac:main"
+piratebot-generate = "tools.generate_voice_lines_mac:main"
 piratebot-expand = "tools.expand_voice_lines:main"
 
 [build-system]
