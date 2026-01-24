@@ -124,6 +124,73 @@ python main.py
 
 ---
 
+## Mac Quick Start (Apple Silicon)
+
+For M1/M2/M3 Macs, use the one-command quickstart:
+
+```bash
+./quickstart_mac.sh
+```
+
+This will:
+1. Create a Python virtual environment
+2. Install Mac-specific dependencies
+3. Optionally expand voice lines using Ollama
+4. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
+
+**Requirements:**
+- macOS with Apple Silicon (M1/M2/M3)
+- Python 3.10+
+- ~8GB free RAM for the 1.7B TTS model
+
+**Options:**
+- `--skip-expand` - Use base 57 lines without LLM expansion
+- `--force` - Regenerate all audio files
+- `--category greetings` - Generate specific category only
+- `--test` - Quick test with only 2 lines to verify setup
+
+See `./quickstart_mac.sh --help` for all options.
+
+---
+
+## Pre-Generated Voice Lines (Recommended)
+
+Instead of real-time TTS, PirateBot can use pre-generated audio for faster, more consistent responses.
+
+### Generate Voice Lines
+
+**On Mac (Apple Silicon):**
+```bash
+./quickstart_mac.sh
+```
+
+**On Linux (NVIDIA GPU):**
+```bash
+python tools/generate_voice_lines.py
+```
+
+### Expand Voice Lines (Optional)
+
+Use Ollama to generate more variations of each line:
+```bash
+# Requires Ollama running: ollama serve
+python tools/expand_voice_lines.py --variations 3
+```
+
+This expands 57 base lines to ~200+ variations for more natural conversations.
+
+### Test Generated Audio
+
+```bash
+# Mac
+afplay godot_project/assets/audio/greetings/greetings_general_000.wav
+
+# Linux
+aplay godot_project/assets/audio/greetings/greetings_general_000.wav
+```
+
+---
+
 ## Configuration
 
 All settings are in `config.yaml`:
@@ -284,6 +351,20 @@ webcam:
 - Look at console output for errors
 - Test components individually (see above)
 
+### Mac-Specific Issues
+
+**"MPS backend not available"**
+- Requires macOS 12.3+ and Apple Silicon
+- Check: `python -c "import torch; print(torch.backends.mps.is_available())"`
+
+**"NaN errors during generation"**
+- The Mac generator already uses float32 (required for MPS voice cloning)
+- If using manual scripts, ensure `dtype=torch.float32`
+
+**"Memory pressure" or system slowdown**
+- Close other apps; 1.7B model needs ~5GB
+- Try smaller model: `--model 0.6B`
+
 ---
 
 ## Project Structure
@@ -309,6 +390,11 @@ piratebot/
 │   ├── ollama_llm.py    # Uses Ollama
 │   ├── kokoro_tts.py    # Uses Kokoro TTS
 │   └── godot_avatar.py  # Talks to Godot via WebSocket
+│
+├── tools/               # Offline processing tools
+│   ├── generate_voice_lines.py      # Linux TTS generator
+│   ├── generate_voice_lines_mac.py  # Mac TTS generator (MPS)
+│   └── expand_voice_lines.py        # LLM voice line expansion
 │
 ├── godot_project/       # The 3D avatar
 │   ├── project.godot

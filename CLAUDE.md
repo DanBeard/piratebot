@@ -87,6 +87,10 @@ piratebot/
 │   ├── ollama_llm.py           # Ollama REST API client
 │   ├── kokoro_tts.py           # Kokoro + Rhubarb lip-sync
 │   └── godot_avatar.py         # WebSocket client for Godot
+├── tools/                      # Offline processing tools
+│   ├── generate_voice_lines.py        # Linux TTS generator (CUDA)
+│   ├── generate_voice_lines_mac.py    # Mac TTS generator (MPS backend)
+│   └── expand_voice_lines.py          # LLM voice line expansion
 ├── godot_project/              # Godot 4 project
 │   ├── scripts/
 │   │   ├── websocket_server.gd # Autoload, receives commands
@@ -189,6 +193,18 @@ python -m services.moondream_vlm /path/to/image.jpg
 
 # Test avatar connection (needs Godot running)
 python -m services.godot_avatar
+
+# Generate voice lines (Mac) - quick test with 2 lines
+./quickstart_mac.sh --test
+
+# Generate voice lines (Mac) - specific category
+python tools/generate_voice_lines_mac.py --category greetings
+
+# Generate voice lines (Linux)
+python tools/generate_voice_lines.py --category greetings
+
+# Expand voice lines with Ollama (dry-run shows what would happen)
+python tools/expand_voice_lines.py --dry-run
 ```
 
 ## References
