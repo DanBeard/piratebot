@@ -272,10 +272,14 @@ class VoiceLineGeneratorMac:
 
     def _generate_voice_design_results(self, text: str):
         """Generate audio using VoiceDesign with pirate voice description."""
+        # Classic pirate voice is based on West Country/Bristolian English accent
+        # (Robert Newton's Long John Silver established this stereotype)
         pirate_voice_instruct = (
-            "A gruff, weathered male pirate voice with a deep, gravelly tone. "
-            "Speaks with theatrical enthusiasm, rolling Rs, and dramatic pauses. "
-            "Sounds like an old sea captain with a hearty, booming delivery."
+            "An old, grizzled male pirate with a thick West Country English accent "
+            "(Bristolian). Deep, raspy, weathered voice like an old sea dog. "
+            "Speaks slowly with dramatic flair, rolling Rs, and hearty 'ARRR' sounds. "
+            "Gravelly and rough from years of rum and sea air. Think Robert Newton "
+            "as Long John Silver - theatrical, menacing but jolly."
         )
         return list(self._tts_model.generate_voice_design(
             text=text,
