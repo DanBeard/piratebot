@@ -274,15 +274,13 @@ class VoiceLineGeneratorMac:
 
     def _generate_voice_design_results(self, text: str):
         """Generate audio using VoiceDesign with pirate voice description."""
-        # Qwen3-TTS VoiceDesign works best with specific acoustic/emotional descriptors
-        # Must be VERY explicit about British accent to avoid American default
+        # Qwen3-TTS VoiceDesign - be explicit about British accent
+        # AVOID words like "slow", "dramatic pauses" - model takes them too literally!
         pirate_voice_instruct = (
-            "British male, 58 years old, STRONG British West Country accent from Cornwall, England. "
-            "NOT American. Speaks like a traditional English pirate from Bristol. "
-            "Deep gravelly voice with heavy vocal fry, raspy and weathered. "
-            "Sounds like Geoffrey Rush as Captain Barbossa - theatrical British villain. "
-            "Rolling Rs, dropped Hs, rural English dialect. Says 'arrr' with British pronunciation. "
-            "Gruff, menacing, but with dark British humor. Old sea captain from England."
+            "British male, 55 years old, West Country English accent from Bristol. "
+            "NOT American. Deep gravelly raspy voice. "
+            "Sounds like Geoffrey Rush as Barbossa - theatrical British pirate. "
+            "Gruff and menacing with dark humor. Normal speaking pace."
         )
         logger.info(f"  Generating: '{text[:50]}...'")
         results = list(self._tts_model.generate_voice_design(
