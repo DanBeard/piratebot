@@ -272,6 +272,137 @@ class VoiceLineGeneratorMac:
             logger.error(f"Failed to load reference audio: {e}")
             return None
 
+    def generate_voice_sample(self) -> bool:
+        """Generate a pirate voice sample using VoiceDesign, then save for cloning.
+
+        This creates a properly formatted voice sample that we KNOW works,
+        helping diagnose whether voice cloning issues are library bugs or file format issues.
+        """
+        if not self._ensure_tts_loaded():
+            logger.error("Could not load TTS model")
+            return False
+
+        # The sample phrase - something pirate-y that exercises the voice
+        sample_text = "Ahoy there matey! I be Captain Blackbeard, the most fearsome pirate to ever sail the seven seas. Arrr!"
+
+        logger.info("=" * 60)
+        logger.info("Generating pirate voice sample using VoiceDesign...")
+        logger.info(f"  Text: '{sample_text}'")
+        logger.info("=" * 60)
+
+        try:
+            import mlx.core as mx
+            import soundfile as sf
+            import numpy as np
+
+            # Generate using VoiceDesign
+            results = self._generate_voice_design_results(sample_text)
+
+            audio_segments = [r.audio for r in results if r.audio is not None]
+            if not audio_segments:
+                logger.error("No audio generated for voice sample")
+                return False
+
+            if len(audio_segments) == 1:
+                audio = np.array(audio_segments[0])
+            else:
+                audio = np.concatenate([np.array(seg) for seg in audio_segments])
+
+            sr = self._tts_model.sample_rate
+            duration = len(audio) / sr
+
+            # Save the voice sample
+            self.voice_sample_path.parent.mkdir(parents=True, exist_ok=True)
+            sf.write(str(self.voice_sample_path), audio, sr)
+            logger.info(f"  Saved voice sample: {self.voice_sample_path} ({duration:.1f}s)")
+
+            # Save the transcript
+            transcript_path = self.voice_sample_path.with_suffix(".txt")
+            with open(transcript_path, "w") as f:
+                f.write(sample_text)
+            logger.info(f"  Saved transcript: {transcript_path}")
+
+            mx.clear_cache()
+
+            logger.info("")
+            logger.info("Voice sample generated! Now testing voice cloning...")
+            logger.info("")
+
+            # Now try to use it for voice cloning
+            return self._test_voice_cloning(sample_text)
+
+        except Exception as e:
+            logger.error(f"Failed to generate voice sample: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def _test_voice_cloning(self, original_text: str) -> bool:
+        """Test voice cloning with the generated sample."""
+        test_text = "Shiver me timbers! The treasure be buried on that island!"
+
+        logger.info("Testing voice cloning with generated sample...")
+        logger.info(f"  Test text: '{test_text}'")
+
+        try:
+            # Reload model in base mode for voice cloning
+            self._tts_model = None
+            self._has_voice_sample = True
+            self._model_type = "base"
+
+            from mlx_audio.tts.utils import load_model
+            model_id = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+            logger.info(f"  Loading Base model for cloning: {model_id}")
+            self._tts_model = load_model(model_id)
+
+            # Load the reference audio we just created
+            ref_audio = self._load_reference_audio()
+            ref_text = self._load_reference_text()
+
+            if ref_audio is None:
+                logger.error("  Failed to load reference audio we just created!")
+                return False
+
+            logger.info(f"  Reference audio shape: {ref_audio.shape}")
+            logger.info(f"  Reference text: '{ref_text}'")
+
+            # Try voice cloning
+            logger.info("  Attempting voice clone generation...")
+            results = list(self._tts_model.generate(
+                text=test_text,
+                ref_audio=ref_audio,
+                ref_text=ref_text,
+            ))
+
+            logger.info(f"  SUCCESS! Voice cloning works!")
+            logger.info(f"  Generated {len(results)} segment(s)")
+
+            # Save the test output
+            import numpy as np
+            import soundfile as sf
+
+            audio_segments = [r.audio for r in results if r.audio is not None]
+            if audio_segments:
+                if len(audio_segments) == 1:
+                    audio = np.array(audio_segments[0])
+                else:
+                    audio = np.concatenate([np.array(seg) for seg in audio_segments])
+
+                test_output = self.voice_sample_path.parent / "voice_clone_test.wav"
+                sf.write(str(test_output), audio, self._tts_model.sample_rate)
+                logger.info(f"  Saved test: {test_output}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"  Voice cloning FAILED: {e}")
+            import traceback
+            traceback.print_exc()
+            logger.info("")
+            logger.info("  This confirms the issue is in mlx-audio's voice cloning,")
+            logger.info("  not your audio file format. Using VoiceDesign fallback.")
+            return False
+
     def _generate_voice_design_results(self, text: str):
         """Generate audio using VoiceDesign with pirate voice description."""
         # Qwen3-TTS VoiceDesign - be explicit about British accent
@@ -815,6 +946,11 @@ def main():
         action="store_true",
         help="Quick test: generate only first 2 lines to verify setup",
     )
+    parser.add_argument(
+        "--generate-voice-sample",
+        action="store_true",
+        help="Generate a pirate voice sample using VoiceDesign, then test voice cloning with it",
+    )
 
     args = parser.parse_args()
 
@@ -832,7 +968,15 @@ def main():
         progress_path=args.progress_file,
     )
 
-    if args.list_lines:
+    if args.generate_voice_sample:
+        success = generator.generate_voice_sample()
+        if success:
+            print("\n✓ Voice cloning works! You can now run without --generate-voice-sample")
+            print("  and it will use voice cloning for consistent pirate voice.")
+        else:
+            print("\n✗ Voice cloning failed. Will use VoiceDesign fallback for each line.")
+        sys.exit(0 if success else 1)
+    elif args.list_lines:
         generator.list_lines(args.yaml, args.category)
     elif args.verify:
         result = generator.verify_files(args.yaml)
