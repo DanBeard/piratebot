@@ -204,9 +204,6 @@ data/*_expanded.yaml
 # Keep voice line definitions
 !data/voice_lines.yaml
 
-# Mac virtual environment
-.venv-mac/
-
 # =============================================================================
 # Logs
 # =============================================================================

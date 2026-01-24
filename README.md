@@ -133,15 +133,17 @@ For M1/M2/M3 Macs, use the one-command quickstart:
 ```
 
 This will:
-1. Create a Python virtual environment
-2. Install Mac-specific dependencies
-3. Optionally expand voice lines using Ollama
-4. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
+1. Install [uv](https://github.com/astral-sh/uv) if not present (fast Python package manager)
+2. Create a Python virtual environment
+3. Install Mac-specific dependencies
+4. Optionally expand voice lines using Ollama
+5. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
 
 **Requirements:**
 - macOS with Apple Silicon (M1/M2/M3)
 - Python 3.10+
 - ~8GB free RAM for the 1.7B TTS model
+- uv (installed automatically if missing)
 
 **Options:**
 - `--skip-expand` - Use base 57 lines without LLM expansion

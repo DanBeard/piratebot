@@ -14,6 +14,7 @@
 #   - macOS with Apple Silicon (M1/M2/M3)
 #   - Python 3.10+
 #   - ~8GB free RAM for 1.7B model
+#   - uv (will be installed automatically if missing)
 
 set -e
 
@@ -122,15 +123,33 @@ fi
 PY_VERSION=$(python3 --version)
 echo -e "  ${GREEN}✓${NC} $PY_VERSION"
 
-# Step 2: Virtual environment
+# Check/install uv
+if ! command -v uv &> /dev/null; then
+    echo -e "  ${YELLOW}uv not found, installing...${NC}"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Add to PATH for this session
+    export PATH="$HOME/.local/bin:$PATH"
+    if command -v uv &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} uv installed"
+    else
+        echo -e "${RED}Error: Failed to install uv${NC}"
+        echo "  Install manually: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        exit 1
+    fi
+else
+    UV_VERSION=$(uv --version 2>&1)
+    echo -e "  ${GREEN}✓${NC} $UV_VERSION"
+fi
+
+# Step 2: Virtual environment (using uv)
 echo ""
 echo -e "${BLUE}[2/7] Setting up virtual environment...${NC}"
 
-VENV_PATH=".venv-mac"
+VENV_PATH=".venv"
 
 if [[ ! -d "$VENV_PATH" ]]; then
-    echo "  Creating $VENV_PATH..."
-    python3 -m venv "$VENV_PATH"
+    echo "  Creating $VENV_PATH with uv..."
+    uv venv "$VENV_PATH"
     echo -e "  ${GREEN}✓${NC} Created $VENV_PATH"
 else
     echo -e "  ${GREEN}✓${NC} $VENV_PATH exists"
@@ -140,12 +159,9 @@ fi
 source "$VENV_PATH/bin/activate"
 echo -e "  ${GREEN}✓${NC} Activated virtual environment"
 
-# Install/upgrade pip
-pip install --quiet --upgrade pip
-
-# Install dependencies
-echo "  Installing dependencies..."
-pip install --quiet -r requirements-mac.txt
+# Install dependencies with uv (much faster than pip)
+echo "  Installing dependencies with uv..."
+uv pip install -r requirements-mac.txt
 
 echo -e "  ${GREEN}✓${NC} Dependencies installed"
 
