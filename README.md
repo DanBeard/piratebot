@@ -145,6 +145,13 @@ This will:
 - ~8GB free RAM for the 1.7B TTS model
 - uv (installed automatically if missing)
 
+**Voice Cloning (optional):**
+For custom pirate voice cloning, add two files to `data/`:
+1. `pirate_voice_sample.wav` - 6-10 second audio sample of your desired voice
+2. `pirate_voice_sample.txt` - Transcript of what's spoken in the audio
+
+Without these files, the generator uses VoiceDesign to create a pirate voice from description.
+
 **Manual setup (alternative):**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh

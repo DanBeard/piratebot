@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 # Mac voice line generation (Apple Silicon with MLX)
 mac = [
-    "mlx-audio[tts]>=0.2.10",
+    "mlx-audio[tts]>=0.3.0rc1",  # Need 0.3.0+ for qwen3_tts model
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
     "pyttsx3>=2.90",

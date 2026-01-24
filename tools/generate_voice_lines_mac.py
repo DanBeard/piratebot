@@ -5,7 +5,9 @@ Voice Line Generator for Mac (Apple Silicon)
 Voice line generator using mlx-audio for native Apple Silicon performance.
 Designed for safe stop/resume operation on Apple M-series chips.
 
-Uses Qwen3-TTS models from mlx-community for fast inference on MLX backend.
+Uses models from mlx-community for fast inference on MLX backend:
+- Kokoro-82M: Fast TTS with 54+ voice presets
+- CSM-1B: Voice cloning from reference audio
 
 Usage:
     uv run python tools/generate_voice_lines_mac.py                    # Generate all lines
@@ -157,9 +159,8 @@ class VoiceLineGeneratorMac:
         self._tts_model = None
         self._db: Optional[VoiceLineDB] = None
         self._shutdown_requested = False
-        self._ref_audio = None
-        self._ref_text = None
         self._has_voice_sample = False
+        self._model_type = "base"  # "base" for voice cloning, "voice_design" for designed voice
 
         # Statistics
         self.stats = {
@@ -178,18 +179,19 @@ class VoiceLineGeneratorMac:
         self._shutdown_requested = True
 
     def _ensure_tts_loaded(self) -> bool:
-        """Lazy-load Qwen3-TTS model using mlx-audio for Apple Silicon."""
+        """Lazy-load Qwen3-TTS model using mlx-audio for Apple Silicon.
+
+        Uses different model variants based on availability of voice sample:
+        - Base model with voice cloning if sample exists
+        - VoiceDesign model with pirate voice description otherwise
+        """
         if self._tts_model is not None:
             return True
 
         try:
             from mlx_audio.tts.utils import load_model
 
-            logger.info(f"Loading Qwen3-TTS model via mlx-audio ({self.model_size})...")
-
-            # Map model size to mlx-community model ID
-            # - Base model: for voice cloning
-            # - CustomVoice model: for instruction-based generation
+            # Check if voice sample exists for voice cloning
             if self.voice_sample_path.exists():
                 # Use Base model for voice cloning
                 model_id = {
@@ -197,19 +199,17 @@ class VoiceLineGeneratorMac:
                     "0.6B": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
                 }.get(self.model_size, "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16")
                 self._has_voice_sample = True
+                self._model_type = "base"
                 logger.info(f"Voice sample available: {self.voice_sample_path}")
-                # Load reference audio for voice cloning
-                self._load_reference_audio()
+                logger.info(f"Loading Qwen3-TTS Base model for voice cloning...")
             else:
-                # Use CustomVoice model for instruction-based generation
-                model_id = {
-                    "1.7B": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
-                    "0.6B": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
-                }.get(self.model_size, "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16")
+                # Use VoiceDesign model to create pirate voice from description
+                model_id = "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16"
                 self._has_voice_sample = False
-                logger.warning(
+                self._model_type = "voice_design"
+                logger.info(
                     f"Voice sample not found: {self.voice_sample_path}. "
-                    f"Using CustomVoice model with pirate instructions."
+                    f"Using VoiceDesign to create pirate voice."
                 )
 
             logger.info(f"  Model: {model_id}")
@@ -225,25 +225,35 @@ class VoiceLineGeneratorMac:
             return False
         except Exception as e:
             logger.error(f"Failed to load Qwen3-TTS: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
-    def _load_reference_audio(self) -> None:
-        """Load reference audio for voice cloning."""
-        try:
-            import librosa
-            import mlx.core as mx
+    def _get_ref_text_path(self) -> Path:
+        """Get path to reference text file (transcript of voice sample)."""
+        return self.voice_sample_path.with_suffix(".txt")
 
-            # Load audio at 24kHz (Qwen3-TTS sample rate)
-            audio, sr = librosa.load(str(self.voice_sample_path), sr=24000)
-            self._ref_audio = mx.array(audio)
-            # For now, we don't have a transcript - use x_vector mode
-            self._ref_text = None
-            logger.info(f"  Reference audio loaded: {len(audio)/sr:.1f}s")
-        except Exception as e:
-            logger.warning(f"Failed to load reference audio: {e}")
-            self._ref_audio = None
-            self._ref_text = None
-            self._has_voice_sample = False
+    def _load_reference_text(self) -> Optional[str]:
+        """Load reference text (transcript) for voice cloning.
+
+        The qwen3_tts model expects ref_text to be the transcript of the ref_audio.
+        If not provided, the model will attempt to work without it.
+        """
+        ref_text_path = self._get_ref_text_path()
+        if ref_text_path.exists():
+            try:
+                with open(ref_text_path, "r") as f:
+                    ref_text = f.read().strip()
+                logger.info(f"  Reference text loaded: '{ref_text[:50]}...'")
+                return ref_text
+            except Exception as e:
+                logger.warning(f"Failed to load reference text: {e}")
+        else:
+            logger.info(
+                f"  No reference text file found at {ref_text_path}. "
+                f"Create one with the transcript of your voice sample for better cloning."
+            )
+        return None
 
     def _get_db(self) -> VoiceLineDB:
         """Get or create database instance."""
@@ -272,26 +282,27 @@ class VoiceLineGeneratorMac:
             # Ensure output directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Generate audio using appropriate method
-            if getattr(self, "_has_voice_sample", False) and self._ref_audio is not None:
-                # Use voice cloning with reference audio (Base model)
+            # Generate audio using appropriate method based on model type
+            if self._model_type == "base" and self._has_voice_sample:
+                # Use Base model with voice cloning
+                # ref_audio is a file path (string), not an array
+                ref_text = self._load_reference_text()
                 results = list(self._tts_model.generate(
                     text=text,
-                    voice="Pirate",
-                    ref_audio=self._ref_audio,
-                    ref_text=self._ref_text,  # None uses x_vector mode
+                    ref_audio=str(self.voice_sample_path),
+                    ref_text=ref_text,
                 ))
             else:
-                # Use CustomVoice model with pirate-style instruction
-                instruct = (
-                    "Speak with a gruff pirate voice, enthusiastic and theatrical, "
-                    "with hearty emphasis on pirate words like 'Arrr' and 'matey'."
+                # Use VoiceDesign model with pirate voice description
+                pirate_voice_instruct = (
+                    "A gruff, weathered male pirate voice with a deep, gravelly tone. "
+                    "Speaks with theatrical enthusiasm, rolling Rs, and dramatic pauses. "
+                    "Sounds like an old sea captain with a hearty, booming delivery."
                 )
-                results = list(self._tts_model.generate_custom_voice(
+                results = list(self._tts_model.generate_voice_design(
                     text=text,
-                    speaker="Ryan",  # Male voice
                     language="English",
-                    instruct=instruct,
+                    instruct=pirate_voice_instruct,
                 ))
 
             # Combine all audio segments
@@ -312,13 +323,15 @@ class VoiceLineGeneratorMac:
             # Save to file
             sf.write(str(output_path), audio, sr)
 
-            # Clear MLX cache
+            # Clear MLX cache periodically to avoid memory buildup
             mx.clear_cache()
 
             return True
 
         except Exception as e:
             logger.error(f"Audio generation failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def _generate_audio_fallback(self, text: str, output_path: Path) -> bool:
