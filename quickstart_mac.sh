@@ -37,6 +37,7 @@ CATEGORY=""
 MODEL="1.7B"
 VARIATIONS=2
 TEST_MODE=false
+CLEAN=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -46,6 +47,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --force)
+            FORCE=true
+            shift
+            ;;
+        --clean)
+            CLEAN=true
             FORCE=true
             shift
             ;;
@@ -72,6 +78,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
+            echo "  --clean            Clear ALL cached data and start completely fresh"
             echo "  --skip-expand      Skip voice line expansion (use existing 57 lines)"
             echo "  --force            Regenerate all audio files"
             echo "  --category NAME    Only generate specific category"
@@ -92,6 +99,17 @@ echo ""
 echo -e "${BLUE}PirateBot Mac Quickstart${NC}"
 echo "========================"
 echo ""
+
+# Clean mode - wipe everything and start fresh
+if [[ "$CLEAN" == true ]]; then
+    echo -e "${YELLOW}[CLEAN] Removing all cached data...${NC}"
+    rm -f data/.voice_gen_progress.json
+    rm -f data/voice_lines_expanded.yaml
+    rm -rf godot_project/assets/audio/*
+    find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Cache cleared"
+    echo ""
+fi
 
 # Step 1: Check environment
 echo -e "${BLUE}[1/7] Checking environment...${NC}"
