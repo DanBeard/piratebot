@@ -18,6 +18,11 @@ httpx>=0.25.0               # Alternative sync HTTP client
 # Text-to-Speech
 # kokoro-tts                # Install separately - see README
 
+# Voice Line System (Pre-generated audio)
+chromadb>=0.4.0             # Vector database for voice line search
+sentence-transformers>=2.2.0  # Embedding model for semantic search
+# qwen-tts                  # For offline voice generation - see README
+
 # Avatar Communication
 websockets>=12.0            # WebSocket client for Godot communication
 

@@ -192,6 +192,22 @@ captures/
 screenshots/
 
 # =============================================================================
+# Data Directory
+# =============================================================================
+
+# Generated/runtime files in data/
+data/voice_line_db/
+data/.voice_gen_progress.json
+data/pirate_voice_sample.wav
+data/*_expanded.yaml
+
+# Keep voice line definitions
+!data/voice_lines.yaml
+
+# Mac virtual environment
+.venv-mac/
+
+# =============================================================================
 # Logs
 # =============================================================================
 

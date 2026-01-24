@@ -35,12 +35,23 @@ llm:
   max_tokens: 100               # Keep responses short
   temperature: 0.8              # Some creativity for variety
 
-# Text-to-Speech (Kokoro)
+# Text-to-Speech (Kokoro) - Legacy, used as fallback
 tts:
   model: "kokoro-v0_19"
   voice: "af_sky"               # Try different voices: am_adam, af_nicole, etc.
   speed: 1.0
   output_dir: "godot_project/assets/audio"
+
+# Pre-generated Voice Lines (Recommended)
+voice_lines:
+  enabled: true                  # Use pre-generated voice lines instead of real-time TTS
+  db_path: "data/voice_line_db"  # ChromaDB database path
+  yaml_path: "data/voice_lines.yaml"  # Voice line definitions
+  audio_path: "godot_project/assets/audio"  # Pre-generated audio files
+  use_tool_calling: true         # Use LLM tool-calling to select lines
+  fallback_to_tts: false         # If true, fall back to real-time TTS when no match
+  recently_used_cooldown: 300    # Seconds before reusing same line (5 min)
+  similarity_threshold: 0.65     # Minimum similarity score for matches
 
 # Avatar (Godot WebSocket)
 avatar:

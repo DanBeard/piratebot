@@ -2,13 +2,15 @@
 Ollama LLM implementation.
 
 Uses the Ollama REST API to generate text with local LLMs.
+Supports native tool-calling for voice line selection.
 """
 
 import asyncio
 import json
 import logging
 import time
-from typing import AsyncIterator, Optional
+from dataclasses import dataclass, field
+from typing import Any, AsyncIterator, Optional
 
 import aiohttp
 import httpx
@@ -20,6 +22,69 @@ from interfaces.language_model import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolDefinition:
+    """Definition of a tool the LLM can call."""
+
+    name: str
+    description: str
+    parameters: dict[str, Any]  # JSON Schema for parameters
+
+    def to_ollama_format(self) -> dict:
+        """Convert to Ollama API format."""
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters,
+            },
+        }
+
+
+@dataclass
+class ToolCall:
+    """A tool call made by the LLM."""
+
+    name: str
+    arguments: dict[str, Any]
+    id: str = ""
+
+    @classmethod
+    def from_ollama_response(cls, tool_call: dict) -> "ToolCall":
+        """Parse tool call from Ollama response."""
+        function = tool_call.get("function", {})
+        return cls(
+            name=function.get("name", ""),
+            arguments=function.get("arguments", {}),
+            id=tool_call.get("id", ""),
+        )
+
+
+@dataclass
+class ToolResult:
+    """Result of executing a tool."""
+
+    tool_call_id: str
+    content: str
+
+
+@dataclass
+class GenerationWithToolsResult:
+    """Result from generation that may include tool calls."""
+
+    text: str
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    tokens_generated: int = 0
+    generation_time_ms: float = 0.0
+    model: str = ""
+
+    @property
+    def has_tool_calls(self) -> bool:
+        """Check if any tool calls were made."""
+        return len(self.tool_calls) > 0
 
 
 class OllamaLLM(ILanguageModel):
@@ -68,13 +133,15 @@ class OllamaLLM(ILanguageModel):
         user_message: str,
         config: Optional[GenerationConfig] = None,
         stream: bool = False,
+        tools: Optional[list[ToolDefinition]] = None,
+        messages: Optional[list[dict]] = None,
     ) -> dict:
         """Build the Ollama API request body."""
         config = config or GenerationConfig()
 
         request = {
             "model": self.model,
-            "messages": self._build_messages(system_prompt, user_message),
+            "messages": messages or self._build_messages(system_prompt, user_message),
             "stream": stream,
             "options": {
                 "num_predict": config.max_tokens,
@@ -85,6 +152,9 @@ class OllamaLLM(ILanguageModel):
 
         if config.stop_sequences:
             request["options"]["stop"] = config.stop_sequences
+
+        if tools:
+            request["tools"] = [tool.to_ollama_format() for tool in tools]
 
         return request
 
@@ -225,6 +295,196 @@ class OllamaLLM(ILanguageModel):
                         except json.JSONDecodeError:
                             continue
 
+    def generate_with_tools(
+        self,
+        system_prompt: str,
+        user_message: str,
+        tools: list[ToolDefinition],
+        config: Optional[GenerationConfig] = None,
+    ) -> GenerationWithToolsResult:
+        """
+        Generate a response with tool-calling support.
+
+        The LLM may choose to call tools instead of (or in addition to)
+        generating text. The caller is responsible for executing the
+        tool calls and optionally continuing the conversation.
+
+        Args:
+            system_prompt: System/persona prompt
+            user_message: User's message
+            tools: List of available tools
+            config: Generation parameters
+
+        Returns:
+            GenerationWithToolsResult with text and/or tool calls
+        """
+        start_time = time.time()
+
+        request_body = self._build_request(
+            system_prompt, user_message, config, stream=False, tools=tools
+        )
+
+        try:
+            response = self._sync_client.post(
+                f"{self.base_url}/api/chat",
+                json=request_body,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            message = data.get("message", {})
+            text = message.get("content", "")
+            tokens = data.get("eval_count", 0)
+            elapsed_ms = (time.time() - start_time) * 1000
+
+            # Parse tool calls if present
+            tool_calls = []
+            if "tool_calls" in message:
+                for tc in message["tool_calls"]:
+                    tool_calls.append(ToolCall.from_ollama_response(tc))
+
+            logger.debug(
+                f"Generated {tokens} tokens with {len(tool_calls)} tool calls "
+                f"in {elapsed_ms:.0f}ms"
+            )
+
+            return GenerationWithToolsResult(
+                text=text,
+                tool_calls=tool_calls,
+                tokens_generated=tokens,
+                generation_time_ms=elapsed_ms,
+                model=self.model,
+            )
+
+        except httpx.HTTPError as e:
+            logger.error(f"Ollama API error: {e}")
+            raise
+
+    async def generate_with_tools_async(
+        self,
+        system_prompt: str,
+        user_message: str,
+        tools: list[ToolDefinition],
+        config: Optional[GenerationConfig] = None,
+    ) -> GenerationWithToolsResult:
+        """
+        Async version of generate_with_tools().
+        """
+        start_time = time.time()
+
+        request_body = self._build_request(
+            system_prompt, user_message, config, stream=False, tools=tools
+        )
+
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            try:
+                async with session.post(
+                    f"{self.base_url}/api/chat",
+                    json=request_body,
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+
+                    message = data.get("message", {})
+                    text = message.get("content", "")
+                    tokens = data.get("eval_count", 0)
+                    elapsed_ms = (time.time() - start_time) * 1000
+
+                    # Parse tool calls if present
+                    tool_calls = []
+                    if "tool_calls" in message:
+                        for tc in message["tool_calls"]:
+                            tool_calls.append(ToolCall.from_ollama_response(tc))
+
+                    logger.debug(
+                        f"Generated {tokens} tokens with {len(tool_calls)} tool calls "
+                        f"in {elapsed_ms:.0f}ms"
+                    )
+
+                    return GenerationWithToolsResult(
+                        text=text,
+                        tool_calls=tool_calls,
+                        tokens_generated=tokens,
+                        generation_time_ms=elapsed_ms,
+                        model=self.model,
+                    )
+
+            except aiohttp.ClientError as e:
+                logger.error(f"Ollama API error: {e}")
+                raise
+
+    def continue_with_tool_results(
+        self,
+        system_prompt: str,
+        conversation_history: list[dict],
+        tool_results: list[ToolResult],
+        tools: Optional[list[ToolDefinition]] = None,
+        config: Optional[GenerationConfig] = None,
+    ) -> GenerationWithToolsResult:
+        """
+        Continue a conversation after tool execution.
+
+        Args:
+            system_prompt: System/persona prompt
+            conversation_history: Previous messages in the conversation
+            tool_results: Results from executed tools
+            tools: Tools still available (optional, for multi-turn)
+            config: Generation parameters
+
+        Returns:
+            GenerationWithToolsResult with next response
+        """
+        start_time = time.time()
+
+        # Build messages with tool results
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(conversation_history)
+
+        # Add tool results as tool messages
+        for result in tool_results:
+            messages.append({
+                "role": "tool",
+                "content": result.content,
+                "tool_call_id": result.tool_call_id,
+            })
+
+        request_body = self._build_request(
+            system_prompt, "", config, stream=False, tools=tools, messages=messages
+        )
+
+        try:
+            response = self._sync_client.post(
+                f"{self.base_url}/api/chat",
+                json=request_body,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            message = data.get("message", {})
+            text = message.get("content", "")
+            tokens = data.get("eval_count", 0)
+            elapsed_ms = (time.time() - start_time) * 1000
+
+            # Parse tool calls if present
+            tool_calls = []
+            if "tool_calls" in message:
+                for tc in message["tool_calls"]:
+                    tool_calls.append(ToolCall.from_ollama_response(tc))
+
+            return GenerationWithToolsResult(
+                text=text,
+                tool_calls=tool_calls,
+                tokens_generated=tokens,
+                generation_time_ms=elapsed_ms,
+                model=self.model,
+            )
+
+        except httpx.HTTPError as e:
+            logger.error(f"Ollama API error: {e}")
+            raise
+
     def is_available(self) -> bool:
         """Check if Ollama server is running and model is available."""
         try:
@@ -321,5 +581,83 @@ Give them a short, fun pirate comment about their costume!"""
     print(f"Time: {result.generation_time_ms:.0f}ms")
 
 
+def test_tool_calling():
+    """Test the Ollama LLM with tool calling."""
+    llm = OllamaLLM()
+
+    if not llm.is_available():
+        print("Ollama is not available. Make sure it's running:")
+        print("  ollama serve")
+        print(f"  ollama pull {llm.model}")
+        return
+
+    # Define voice line search tool
+    tools = [
+        ToolDefinition(
+            name="search_voice_lines",
+            description="Search for pre-recorded pirate voice lines that match what you want to say. Returns a list of matching lines with similarity scores.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "desired_text": {
+                        "type": "string",
+                        "description": "What you want to say to the trick-or-treater",
+                    },
+                    "category_hint": {
+                        "type": "string",
+                        "description": "Category to search in: greetings, costume_reactions, farewells, jokes",
+                        "enum": ["greetings", "costume_reactions", "farewells", "jokes"],
+                    },
+                    "costume_type": {
+                        "type": "string",
+                        "description": "Type of costume for better matching: vampire, zombie, witch, superhero, etc.",
+                    },
+                },
+                "required": ["desired_text"],
+            },
+        ),
+        ToolDefinition(
+            name="select_voice_line",
+            description="Select a specific voice line by ID to play.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "line_id": {
+                        "type": "string",
+                        "description": "The ID of the voice line to play",
+                    },
+                },
+                "required": ["line_id"],
+            },
+        ),
+    ]
+
+    system_prompt = """You are Captain Barnacle Bill, selecting pre-recorded voice lines to say to trick-or-treaters.
+
+When you see a costume description:
+1. Use the search_voice_lines tool to find matching pre-recorded lines
+2. Look at the results and select the best one using select_voice_line
+
+You MUST use the tools - you cannot speak directly. Only pre-recorded lines can be played."""
+
+    user_message = """A trick-or-treater just arrived! They're dressed as a vampire with a cape and fangs.
+
+Search for an appropriate voice line to greet them!"""
+
+    print("Testing tool calling...")
+    print("-" * 50)
+
+    result = llm.generate_with_tools(system_prompt, user_message, tools)
+
+    print(f"Response text: {result.text or '(no text)'}")
+    print(f"Tool calls: {len(result.tool_calls)}")
+    for tc in result.tool_calls:
+        print(f"  - {tc.name}({tc.arguments})")
+    print(f"Tokens: {result.tokens_generated}")
+    print(f"Time: {result.generation_time_ms:.0f}ms")
+
+
 if __name__ == "__main__":
     test_pirate_response()
+    print("\n" + "=" * 60 + "\n")
+    test_tool_calling()

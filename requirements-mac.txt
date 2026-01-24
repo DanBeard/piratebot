@@ -1,0 +1,24 @@
+# PirateBot Mac Dependencies (Apple Silicon)
+# For voice line generation with Qwen3-TTS on MPS backend
+
+# Core
+pyyaml>=6.0
+numpy>=1.24.0
+
+# Voice line database
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# PyTorch (MPS support built-in for Apple Silicon)
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Qwen3-TTS
+qwen-tts>=0.1.0
+
+# HTTP clients (for Ollama)
+aiohttp>=3.9.0
+httpx>=0.25.0
+
+# Optional: Fallback TTS if Qwen3-TTS unavailable
+pyttsx3>=2.90
