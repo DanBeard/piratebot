@@ -1,0 +1,93 @@
+[project]
+name = "piratebot"
+version = "0.1.0"
+description = "Interactive Halloween pirate decoration with AI-powered costume recognition and voice responses"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "PirateBot Team" }]
+
+# Core dependencies (minimal for voice line tools)
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy>=1.24.0",
+    "aiohttp>=3.9.0",
+    "httpx>=0.25.0",
+]
+
+[project.optional-dependencies]
+# Mac voice line generation (Apple Silicon with MPS)
+mac = [
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "qwen-tts>=0.0.4",
+    "soundfile>=0.12.0",
+    "pyttsx3>=2.90",
+]
+
+# Linux voice line generation (NVIDIA CUDA)
+linux = [
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "qwen-tts>=0.0.4",
+    "soundfile>=0.12.0",
+    "pyttsx3>=2.90",
+]
+
+# Full PirateBot runtime (detection, VLM, avatar)
+full = [
+    "ultralytics>=8.0.0",
+    "opencv-python>=4.8.0",
+    "transformers>=4.36.0",
+    "torch>=2.0.0",
+    "accelerate>=0.25.0",
+    "pillow>=10.0.0",
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    "websockets>=12.0",
+    "python-dotenv>=1.0.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+# Entry points for voice line tools
+piratebot-generate = "tools.generate_voice_lines:main"
+piratebot-generate-mac = "tools.generate_voice_lines_mac:main"
+piratebot-expand = "tools.expand_voice_lines:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["services", "tools", "interfaces"]
+
+[tool.uv]
+# uv-specific settings
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

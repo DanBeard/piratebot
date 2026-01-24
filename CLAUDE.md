@@ -73,6 +73,7 @@ All models use lazy loading (`_ensure_loaded()`) to:
 
 ```
 piratebot/
+├── pyproject.toml              # Project config, dependencies (uv/pip)
 ├── main.py                     # Entry point, orchestration loop
 ├── config.yaml                 # All configuration in one place
 ├── interfaces/                 # Abstract base classes
@@ -179,32 +180,36 @@ The main loop catches exceptions per-detection to avoid crashing on single failu
 ## Testing Commands
 
 ```bash
+# Sync dependencies first
+uv sync --extra full   # Full runtime (Linux)
+uv sync --extra mac    # Mac voice generation
+
 # Test LLM connection
-python -m services.ollama_llm
+uv run python -m services.ollama_llm
 
 # Test webcam detection
-python -m services.yolo_detector
+uv run python -m services.yolo_detector
 
 # Test TTS
-python -m services.kokoro_tts
+uv run python -m services.kokoro_tts
 
 # Test VLM with image
-python -m services.moondream_vlm /path/to/image.jpg
+uv run python -m services.moondream_vlm /path/to/image.jpg
 
 # Test avatar connection (needs Godot running)
-python -m services.godot_avatar
+uv run python -m services.godot_avatar
 
 # Generate voice lines (Mac) - quick test with 2 lines
 ./quickstart_mac.sh --test
 
 # Generate voice lines (Mac) - specific category
-python tools/generate_voice_lines_mac.py --category greetings
+uv run python tools/generate_voice_lines_mac.py --category greetings
 
 # Generate voice lines (Linux)
-python tools/generate_voice_lines.py --category greetings
+uv run python tools/generate_voice_lines.py --category greetings
 
 # Expand voice lines with Ollama (dry-run shows what would happen)
-python tools/expand_voice_lines.py --dry-run
+uv run python tools/expand_voice_lines.py --dry-run
 ```
 
 ## References

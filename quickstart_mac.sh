@@ -9,6 +9,7 @@
 #   ./quickstart_mac.sh --force      # Regenerate all audio
 #   ./quickstart_mac.sh --skip-expand  # Skip text expansion
 #   ./quickstart_mac.sh --category greetings  # Generate specific category
+#   ./quickstart_mac.sh --test       # Quick test with 2 lines
 #
 # Requirements:
 #   - macOS with Apple Silicon (M1/M2/M3)
@@ -141,27 +142,12 @@ else
     echo -e "  ${GREEN}✓${NC} $UV_VERSION"
 fi
 
-# Step 2: Virtual environment (using uv)
+# Step 2: Sync dependencies with uv
 echo ""
-echo -e "${BLUE}[2/7] Setting up virtual environment...${NC}"
+echo -e "${BLUE}[2/7] Installing dependencies with uv...${NC}"
 
-VENV_PATH=".venv"
-
-if [[ ! -d "$VENV_PATH" ]]; then
-    echo "  Creating $VENV_PATH with uv..."
-    uv venv "$VENV_PATH"
-    echo -e "  ${GREEN}✓${NC} Created $VENV_PATH"
-else
-    echo -e "  ${GREEN}✓${NC} $VENV_PATH exists"
-fi
-
-# Activate venv
-source "$VENV_PATH/bin/activate"
-echo -e "  ${GREEN}✓${NC} Activated virtual environment"
-
-# Install dependencies with uv (much faster than pip)
-echo "  Installing dependencies with uv..."
-uv pip install -r requirements-mac.txt
+echo "  Syncing project with Mac dependencies..."
+uv sync --extra mac
 
 echo -e "  ${GREEN}✓${NC} Dependencies installed"
 
@@ -222,14 +208,14 @@ elif [[ "$OLLAMA_RUNNING" == true ]]; then
         echo -e "  ${GREEN}✓${NC} Using existing expanded lines: $EXPANDED_YAML"
         YAML_PATH="$EXPANDED_YAML"
     else
-        echo "  Expanding voice lines with Ollama (this may take a few minutes)..."
+        echo "  Expanding voice lines with Ollama..."
 
         EXPAND_ARGS="--yaml $YAML_PATH --output $EXPANDED_YAML --variations $VARIATIONS"
         if [[ -n "$CATEGORY" ]]; then
             EXPAND_ARGS="$EXPAND_ARGS --category $CATEGORY"
         fi
 
-        if python tools/expand_voice_lines.py $EXPAND_ARGS; then
+        if uv run python tools/expand_voice_lines.py $EXPAND_ARGS; then
             echo -e "  ${GREEN}✓${NC} Voice lines expanded"
             YAML_PATH="$EXPANDED_YAML"
         else
@@ -270,8 +256,8 @@ echo ""
 echo "  Generating audio (press Ctrl+C to pause, resume by running again)..."
 echo ""
 
-# Run generator
-python tools/generate_voice_lines_mac.py $GEN_ARGS
+# Run generator using uv run
+uv run python tools/generate_voice_lines_mac.py $GEN_ARGS
 
 # Step 7: Summary
 echo ""
@@ -296,8 +282,8 @@ echo ""
 # Check progress file
 PROGRESS_FILE="data/.voice_gen_progress.json"
 if [[ -f "$PROGRESS_FILE" ]]; then
-    COMPLETED=$(python3 -c "import json; print(len(json.load(open('$PROGRESS_FILE')).get('completed_lines', [])))" 2>/dev/null || echo "?")
-    FAILED=$(python3 -c "import json; print(len(json.load(open('$PROGRESS_FILE')).get('failed_lines', [])))" 2>/dev/null || echo "?")
+    COMPLETED=$(uv run python -c "import json; print(len(json.load(open('$PROGRESS_FILE')).get('completed_lines', [])))" 2>/dev/null || echo "?")
+    FAILED=$(uv run python -c "import json; print(len(json.load(open('$PROGRESS_FILE')).get('failed_lines', [])))" 2>/dev/null || echo "?")
     echo "  Progress: $COMPLETED completed, $FAILED failed"
 fi
 
@@ -305,8 +291,8 @@ echo ""
 echo -e "${GREEN}Done!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Test audio: afplay $AUDIO_DIR/greetings/greet_001.wav"
+echo "  1. Test audio: afplay $AUDIO_DIR/greetings/greetings_general_000.wav"
 echo "  2. Add custom voice: copy 6-10s sample to $VOICE_SAMPLE"
 echo "  3. Regenerate with voice: ./quickstart_mac.sh --force"
-echo "  4. Run PirateBot: python main.py"
+echo "  4. Run PirateBot: uv run python main.py"
 echo ""

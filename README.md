@@ -70,13 +70,15 @@ Everything runs on YOUR computer:
 
 ## Quick Start
 
-### 1. Setup Python Environment
+### 1. Install uv and Setup Project
 
 ```bash
+# Install uv (fast Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Sync dependencies
 cd piratebot
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync --extra full
 ```
 
 ### 2. Install Ollama + Model
@@ -118,8 +120,7 @@ ollama serve
 godot
 
 # Terminal 3: Start PirateBot
-source venv/bin/activate
-python main.py
+uv run python main.py
 ```
 
 ---
@@ -134,16 +135,22 @@ For M1/M2/M3 Macs, use the one-command quickstart:
 
 This will:
 1. Install [uv](https://github.com/astral-sh/uv) if not present (fast Python package manager)
-2. Create a Python virtual environment
-3. Install Mac-specific dependencies
-4. Optionally expand voice lines using Ollama
-5. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
+2. Sync project dependencies via `uv sync --extra mac`
+3. Optionally expand voice lines using Ollama
+4. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
 
 **Requirements:**
 - macOS with Apple Silicon (M1/M2/M3)
 - Python 3.10+
 - ~8GB free RAM for the 1.7B TTS model
 - uv (installed automatically if missing)
+
+**Manual setup (alternative):**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra mac
+uv run python tools/generate_voice_lines_mac.py
+```
 
 **Options:**
 - `--skip-expand` - Use base 57 lines without LLM expansion
@@ -296,16 +303,16 @@ Each component can be tested separately:
 
 ```bash
 # Test if Ollama is working
-python -m services.ollama_llm
+uv run python -m services.ollama_llm
 
 # Test webcam + person detection (shows live view)
-python -m services.yolo_detector
+uv run python -m services.yolo_detector
 
 # Test text-to-speech
-python -m services.kokoro_tts
+uv run python -m services.kokoro_tts
 
 # Test vision model with an image
-python -m services.moondream_vlm /path/to/costume-photo.jpg
+uv run python -m services.moondream_vlm /path/to/costume-photo.jpg
 ```
 
 ---
