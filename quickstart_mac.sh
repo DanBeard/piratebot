@@ -147,7 +147,7 @@ echo ""
 echo -e "${BLUE}[2/7] Installing dependencies with uv...${NC}"
 
 echo "  Syncing project with Mac dependencies..."
-uv sync --extra mac
+uv sync --extra mac --prerelease=allow
 
 echo -e "  ${GREEN}✓${NC} Dependencies installed"
 
@@ -179,16 +179,16 @@ else
     echo "    Install with: brew install ollama"
 fi
 
-# Step 4: Check voice sample
+# Step 4: Check voice sample (currently using VoiceDesign instead)
 echo ""
-echo -e "${BLUE}[4/7] Checking voice sample...${NC}"
+echo -e "${BLUE}[4/7] Voice configuration...${NC}"
 
 VOICE_SAMPLE="data/pirate_voice_sample.wav"
 if [[ -f "$VOICE_SAMPLE" ]]; then
-    echo -e "  ${GREEN}✓${NC} Voice sample: $VOICE_SAMPLE"
+    echo -e "  ${YELLOW}⚠${NC} Voice sample found but voice cloning has issues in mlx-audio RC"
+    echo "    Using VoiceDesign with pirate voice description instead"
 else
-    echo -e "  ${YELLOW}⚠${NC} Voice sample not found: $VOICE_SAMPLE"
-    echo "    Using default voice. Add a 6-10 second pirate voice sample for cloning."
+    echo -e "  ${GREEN}✓${NC} Using VoiceDesign: grizzled West Country pirate voice"
 fi
 
 # Step 5: Voice line expansion (optional)
@@ -250,8 +250,8 @@ fi
 
 # Show device info
 echo "  Device: MPS (Apple Silicon)"
-echo "  Dtype: float32 (required for voice cloning)"
-echo "  Model: Qwen/Qwen3-TTS-12Hz-${MODEL}-Base"
+echo "  Model: Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+echo "  Voice: Grizzled West Country pirate (generated via VoiceDesign)"
 echo ""
 echo "  Generating audio (press Ctrl+C to pause, resume by running again)..."
 echo ""
@@ -292,7 +292,6 @@ echo -e "${GREEN}Done!${NC}"
 echo ""
 echo "Next steps:"
 echo "  1. Test audio: afplay $AUDIO_DIR/greetings/greetings_general_000.wav"
-echo "  2. Add custom voice: copy 6-10s sample to $VOICE_SAMPLE"
-echo "  3. Regenerate with voice: ./quickstart_mac.sh --force"
-echo "  4. Run PirateBot: uv run python main.py"
+echo "  2. Regenerate all: ./quickstart_mac.sh --force"
+echo "  3. Run PirateBot: uv run python main.py"
 echo ""
