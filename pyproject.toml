@@ -16,14 +16,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Mac voice line generation (Apple Silicon with MPS)
+# Mac voice line generation (Apple Silicon with MLX)
 mac = [
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
+    "mlx-audio[tts]>=0.2.10",
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
-    "qwen-tts>=0.0.4",
-    "soundfile>=0.12.0",
     "pyttsx3>=2.90",
 ]
 

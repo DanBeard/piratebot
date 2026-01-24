@@ -2,16 +2,16 @@
 """
 Voice Line Generator for Mac (Apple Silicon)
 
-Enhanced voice line generator with MPS backend support and progress tracking.
+Voice line generator using mlx-audio for native Apple Silicon performance.
 Designed for safe stop/resume operation on Apple M-series chips.
 
-Critical: Uses torch.float32 on MPS - float16 causes NaN errors in voice cloning.
+Uses Qwen3-TTS models from mlx-community for fast inference on MLX backend.
 
 Usage:
-    python tools/generate_voice_lines_mac.py                    # Generate all lines
-    python tools/generate_voice_lines_mac.py --category greetings  # Specific category
-    python tools/generate_voice_lines_mac.py --reset-progress   # Clear progress and restart
-    python tools/generate_voice_lines_mac.py --verify           # Verify existing files
+    uv run python tools/generate_voice_lines_mac.py                    # Generate all lines
+    uv run python tools/generate_voice_lines_mac.py --category greetings  # Specific category
+    uv run python tools/generate_voice_lines_mac.py --reset-progress   # Clear progress and restart
+    uv run python tools/generate_voice_lines_mac.py --verify           # Verify existing files
 """
 
 import argparse
@@ -48,8 +48,7 @@ class ProgressState:
 
     version: int = 1
     started_at: str = ""
-    device: str = ""
-    dtype: str = ""
+    backend: str = "mlx"  # Always MLX for Mac
     completed_lines: list[str] = field(default_factory=list)
     failed_lines: list[dict] = field(default_factory=list)
     current_line: Optional[str] = None
@@ -70,8 +69,7 @@ class ProgressState:
                 state = cls()
                 state.version = data.get("version", 1)
                 state.started_at = data.get("started_at", "")
-                state.device = data.get("device", "")
-                state.dtype = data.get("dtype", "")
+                state.backend = data.get("backend", data.get("device", "mlx"))  # Migrate old format
                 state.completed_lines = data.get("completed_lines", [])
                 state.failed_lines = data.get("failed_lines", [])
                 state.current_line = data.get("current_line")
@@ -94,8 +92,7 @@ class ProgressState:
         data = {
             "version": self.version,
             "started_at": self.started_at,
-            "device": self.device,
-            "dtype": self.dtype,
+            "backend": self.backend,
             "completed_lines": self.completed_lines,
             "failed_lines": self.failed_lines,
             "current_line": self.current_line,
@@ -110,38 +107,24 @@ class ProgressState:
             json.dump(data, f, indent=2)
 
 
-def get_device() -> str:
-    """Auto-detect best available device."""
-    import torch
-
-    if torch.backends.mps.is_available():
-        logger.info("MPS backend available (Apple Silicon)")
-        return "mps"
-    elif torch.cuda.is_available():
-        logger.info(f"CUDA backend available ({torch.cuda.get_device_name(0)})")
-        return "cuda"
-
-    logger.warning("No GPU backend available, using CPU (this will be slow)")
-    return "cpu"
-
-
-def get_dtype(device: str):
-    """Get appropriate dtype for device.
-
-    CRITICAL: MPS voice cloning requires float32 - float16 causes NaN errors.
-    """
-    import torch
-
-    if device == "mps":
-        logger.info("Using float32 (required for MPS voice cloning)")
-        return torch.float32
-
-    # CUDA can use float16 for faster inference
-    return torch.float16
+def check_mlx_available() -> bool:
+    """Check if MLX is available (Apple Silicon required)."""
+    try:
+        import mlx.core as mx
+        # Simple test to verify MLX works
+        _ = mx.array([1, 2, 3])
+        logger.info("MLX backend available (Apple Silicon)")
+        return True
+    except ImportError:
+        logger.error("MLX not available - this script requires Apple Silicon Mac")
+        return False
+    except Exception as e:
+        logger.error(f"MLX error: {e}")
+        return False
 
 
 class VoiceLineGeneratorMac:
-    """Generate audio files for voice lines using Qwen3-TTS with MPS support."""
+    """Generate audio files for voice lines using mlx-audio on Apple Silicon."""
 
     def __init__(
         self,
@@ -149,7 +132,6 @@ class VoiceLineGeneratorMac:
         output_dir: str = "godot_project/assets/audio",
         db_path: str = "data/voice_line_db",
         model_size: str = "1.7B",
-        device: str = "auto",
         progress_path: str = "data/.voice_gen_progress.json",
     ):
         """
@@ -160,7 +142,6 @@ class VoiceLineGeneratorMac:
             output_dir: Directory for generated audio files
             db_path: Path to ChromaDB database
             model_size: Qwen3-TTS model size ("1.7B" or "0.6B")
-            device: Device to run on ("auto", "mps", "cuda", "cpu")
             progress_path: Path to progress tracking file
         """
         self.voice_sample_path = Path(voice_sample_path)
@@ -169,17 +150,16 @@ class VoiceLineGeneratorMac:
         self.model_size = model_size
         self.progress_path = Path(progress_path)
 
-        # Auto-detect device
-        if device == "auto":
-            self.device = get_device()
-        else:
-            self.device = device
-
-        self.dtype = get_dtype(self.device)
+        # Verify MLX is available
+        if not check_mlx_available():
+            raise RuntimeError("MLX not available - requires Apple Silicon Mac")
 
         self._tts_model = None
         self._db: Optional[VoiceLineDB] = None
         self._shutdown_requested = False
+        self._ref_audio = None
+        self._ref_text = None
+        self._has_voice_sample = False
 
         # Statistics
         self.stats = {
@@ -198,69 +178,72 @@ class VoiceLineGeneratorMac:
         self._shutdown_requested = True
 
     def _ensure_tts_loaded(self) -> bool:
-        """Lazy-load Qwen3-TTS model with MPS-specific configuration."""
+        """Lazy-load Qwen3-TTS model using mlx-audio for Apple Silicon."""
         if self._tts_model is not None:
             return True
 
         try:
-            from qwen_tts import Qwen3TTSModel
-            import torch
+            from mlx_audio.tts.utils import load_model
 
-            logger.info(f"Loading Qwen3-TTS model ({self.model_size})...")
-            logger.info(f"  Device: {self.device}")
-            logger.info(f"  Dtype: {self.dtype}")
+            logger.info(f"Loading Qwen3-TTS model via mlx-audio ({self.model_size})...")
 
-            # Map model size to model ID
-            # - Base model: for voice cloning (generate_voice_clone)
-            # - CustomVoice model: for instruction-based generation (generate_custom_voice)
+            # Map model size to mlx-community model ID
+            # - Base model: for voice cloning
+            # - CustomVoice model: for instruction-based generation
             if self.voice_sample_path.exists():
                 # Use Base model for voice cloning
                 model_id = {
-                    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-                    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-                }.get(self.model_size, "Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+                    "1.7B": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
+                    "0.6B": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
+                }.get(self.model_size, "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16")
+                self._has_voice_sample = True
+                logger.info(f"Voice sample available: {self.voice_sample_path}")
+                # Load reference audio for voice cloning
+                self._load_reference_audio()
             else:
                 # Use CustomVoice model for instruction-based generation
                 model_id = {
-                    "1.7B": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-                    "0.6B": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",  # 0.6B doesn't have CustomVoice
-                }.get(self.model_size, "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
-
-            # CRITICAL: Use float32 on MPS - float16/bfloat16 causes NaN errors
-            if self.device == "mps":
-                self._tts_model = Qwen3TTSModel.from_pretrained(
-                    model_id,
-                    device_map="mps",
-                    dtype=torch.float32,  # CRITICAL: float16 fails on MPS
-                )
-            else:
-                self._tts_model = Qwen3TTSModel.from_pretrained(
-                    model_id,
-                    device_map=self.device,
-                    dtype=self.dtype,
-                )
-
-            # Store voice sample path for use during generation
-            if self.voice_sample_path.exists():
-                logger.info(f"Voice sample available: {self.voice_sample_path}")
-                self._has_voice_sample = True
-            else:
+                    "1.7B": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
+                    "0.6B": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
+                }.get(self.model_size, "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16")
+                self._has_voice_sample = False
                 logger.warning(
                     f"Voice sample not found: {self.voice_sample_path}. "
-                    f"Using default voice."
+                    f"Using CustomVoice model with pirate instructions."
                 )
-                self._has_voice_sample = False
+
+            logger.info(f"  Model: {model_id}")
+            self._tts_model = load_model(model_id)
+            logger.info("  Model loaded successfully!")
 
             return True
 
         except ImportError:
             logger.error(
-                "qwen-tts is not installed. Install with: pip install qwen-tts"
+                "mlx-audio is not installed. Install with: uv sync --extra mac"
             )
             return False
         except Exception as e:
             logger.error(f"Failed to load Qwen3-TTS: {e}")
             return False
+
+    def _load_reference_audio(self) -> None:
+        """Load reference audio for voice cloning."""
+        try:
+            import librosa
+            import mlx.core as mx
+
+            # Load audio at 24kHz (Qwen3-TTS sample rate)
+            audio, sr = librosa.load(str(self.voice_sample_path), sr=24000)
+            self._ref_audio = mx.array(audio)
+            # For now, we don't have a transcript - use x_vector mode
+            self._ref_text = None
+            logger.info(f"  Reference audio loaded: {len(audio)/sr:.1f}s")
+        except Exception as e:
+            logger.warning(f"Failed to load reference audio: {e}")
+            self._ref_audio = None
+            self._ref_text = None
+            self._has_voice_sample = False
 
     def _get_db(self) -> VoiceLineDB:
         """Get or create database instance."""
@@ -277,47 +260,60 @@ class VoiceLineGeneratorMac:
         return self.output_dir / line.category / f"{line.id}.json"
 
     def generate_audio(self, text: str, output_path: Path) -> bool:
-        """Generate audio for a text using Qwen3-TTS."""
+        """Generate audio for a text using Qwen3-TTS via mlx-audio."""
         if not self._ensure_tts_loaded():
             return self._generate_audio_fallback(text, output_path)
 
         try:
-            import torch
+            import mlx.core as mx
             import soundfile as sf
+            import numpy as np
 
             # Ensure output directory exists
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Generate audio using appropriate method
-            if getattr(self, "_has_voice_sample", False):
+            if getattr(self, "_has_voice_sample", False) and self._ref_audio is not None:
                 # Use voice cloning with reference audio (Base model)
-                wavs, sr = self._tts_model.generate_voice_clone(
+                results = list(self._tts_model.generate(
                     text=text,
-                    language="English",
-                    ref_audio=str(self.voice_sample_path),
-                    x_vector_only_mode=True,  # Use speaker embedding only
-                )
+                    voice="Pirate",
+                    ref_audio=self._ref_audio,
+                    ref_text=self._ref_text,  # None uses x_vector mode
+                ))
             else:
-                # Use custom voice with pirate-style instruction (CustomVoice model)
+                # Use CustomVoice model with pirate-style instruction
                 instruct = (
                     "Speak with a gruff pirate voice, enthusiastic and theatrical, "
                     "with hearty emphasis on pirate words like 'Arrr' and 'matey'."
                 )
-                wavs, sr = self._tts_model.generate_custom_voice(
+                results = list(self._tts_model.generate_custom_voice(
                     text=text,
-                    language="English",
                     speaker="Ryan",  # Male voice
+                    language="English",
                     instruct=instruct,
-                )
+                ))
+
+            # Combine all audio segments
+            audio_segments = [r.audio for r in results if r.audio is not None]
+            if not audio_segments:
+                logger.error("No audio generated")
+                return False
+
+            # Concatenate segments and convert to numpy
+            if len(audio_segments) == 1:
+                audio = np.array(audio_segments[0])
+            else:
+                audio = np.concatenate([np.array(seg) for seg in audio_segments])
+
+            # Get sample rate from model
+            sr = self._tts_model.sample_rate
 
             # Save to file
-            sf.write(str(output_path), wavs[0], sr)
+            sf.write(str(output_path), audio, sr)
 
-            # Clean up GPU memory after each generation (important for MPS)
-            if self.device == "mps":
-                torch.mps.empty_cache()
-            elif self.device == "cuda":
-                torch.cuda.empty_cache()
+            # Clear MLX cache
+            mx.clear_cache()
 
             return True
 
@@ -567,8 +563,7 @@ class VoiceLineGeneratorMac:
 
         # Load or create progress state
         progress = ProgressState.load(self.progress_path)
-        progress.device = self.device
-        progress.dtype = str(self.dtype)
+        progress.backend = "mlx"
         progress.stats["total"] = len(lines)
 
         logger.info(f"Processing {len(lines)} voice lines...")
@@ -732,12 +727,6 @@ def main():
         help="Verify existing audio files",
     )
     parser.add_argument(
-        "--device",
-        default="auto",
-        choices=["auto", "mps", "cuda", "cpu"],
-        help="Device to run TTS on",
-    )
-    parser.add_argument(
         "--progress-file",
         default="data/.voice_gen_progress.json",
         help="Path to progress tracking file",
@@ -766,7 +755,6 @@ def main():
         output_dir=args.output,
         db_path=args.db,
         model_size=args.model,
-        device=args.device,
         progress_path=args.progress_file,
     )
 

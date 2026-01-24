@@ -137,7 +137,7 @@ This will:
 1. Install [uv](https://github.com/astral-sh/uv) if not present (fast Python package manager)
 2. Sync project dependencies via `uv sync --extra mac`
 3. Optionally expand voice lines using Ollama
-4. Generate pirate audio using Qwen3-TTS with Metal GPU acceleration
+4. Generate pirate audio using [mlx-audio](https://github.com/Blaizzy/mlx-audio) with Qwen3-TTS models (native MLX, optimized for Apple Silicon)
 
 **Requirements:**
 - macOS with Apple Silicon (M1/M2/M3)
