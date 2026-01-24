@@ -255,6 +255,60 @@ class VoiceLineGeneratorMac:
             )
         return None
 
+    def _load_reference_audio(self):
+        """Load reference audio as mlx array for voice cloning."""
+        try:
+            from mlx_audio.tts.generate import load_audio
+
+            ref_audio = load_audio(
+                str(self.voice_sample_path),
+                sample_rate=24000,  # Qwen3-TTS sample rate
+            )
+            logger.info(f"  Reference audio loaded: {ref_audio.shape[0]/24000:.1f}s")
+            return ref_audio
+        except Exception as e:
+            logger.error(f"Failed to load reference audio: {e}")
+            return None
+
+    def _generate_voice_design_results(self, text: str):
+        """Generate audio using VoiceDesign with pirate voice description."""
+        pirate_voice_instruct = (
+            "A gruff, weathered male pirate voice with a deep, gravelly tone. "
+            "Speaks with theatrical enthusiasm, rolling Rs, and dramatic pauses. "
+            "Sounds like an old sea captain with a hearty, booming delivery."
+        )
+        return list(self._tts_model.generate_voice_design(
+            text=text,
+            language="English",
+            instruct=pirate_voice_instruct,
+        ))
+
+    def _generate_with_voice_design(self, text: str, output_path: Path) -> bool:
+        """Fallback generation using VoiceDesign model."""
+        try:
+            import mlx.core as mx
+            import soundfile as sf
+            import numpy as np
+
+            results = self._generate_voice_design_results(text)
+
+            audio_segments = [r.audio for r in results if r.audio is not None]
+            if not audio_segments:
+                return False
+
+            if len(audio_segments) == 1:
+                audio = np.array(audio_segments[0])
+            else:
+                audio = np.concatenate([np.array(seg) for seg in audio_segments])
+
+            sr = self._tts_model.sample_rate
+            sf.write(str(output_path), audio, sr)
+            mx.clear_cache()
+            return True
+        except Exception as e:
+            logger.error(f"VoiceDesign fallback failed: {e}")
+            return False
+
     def _get_db(self) -> VoiceLineDB:
         """Get or create database instance."""
         if self._db is None:
@@ -285,25 +339,20 @@ class VoiceLineGeneratorMac:
             # Generate audio using appropriate method based on model type
             if self._model_type == "base" and self._has_voice_sample:
                 # Use Base model with voice cloning
-                # ref_audio is a file path (string), not an array
+                # ref_audio must be loaded as mlx array, not a path string
+                ref_audio = self._load_reference_audio()
                 ref_text = self._load_reference_text()
+                if ref_audio is None:
+                    logger.warning("Failed to load reference audio, falling back to VoiceDesign")
+                    return self._generate_with_voice_design(text, output_path)
                 results = list(self._tts_model.generate(
                     text=text,
-                    ref_audio=str(self.voice_sample_path),
+                    ref_audio=ref_audio,
                     ref_text=ref_text,
                 ))
             else:
                 # Use VoiceDesign model with pirate voice description
-                pirate_voice_instruct = (
-                    "A gruff, weathered male pirate voice with a deep, gravelly tone. "
-                    "Speaks with theatrical enthusiasm, rolling Rs, and dramatic pauses. "
-                    "Sounds like an old sea captain with a hearty, booming delivery."
-                )
-                results = list(self._tts_model.generate_voice_design(
-                    text=text,
-                    language="English",
-                    instruct=pirate_voice_instruct,
-                ))
+                results = self._generate_voice_design_results(text)
 
             # Combine all audio segments
             audio_segments = [r.audio for r in results if r.audio is not None]
