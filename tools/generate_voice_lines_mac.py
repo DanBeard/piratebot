@@ -275,15 +275,14 @@ class VoiceLineGeneratorMac:
     def _generate_voice_design_results(self, text: str):
         """Generate audio using VoiceDesign with pirate voice description."""
         # Qwen3-TTS VoiceDesign works best with specific acoustic/emotional descriptors
-        # Blend of classic (Robert Newton's Long John Silver) and modern (Geoffrey Rush's
-        # Barbossa, Bill Nighy's Davy Jones) pirate voice archetypes
+        # Must be VERY explicit about British accent to avoid American default
         pirate_voice_instruct = (
-            "Male, 58 years old, deep bass range, extremely gravelly and raspy voice "
-            "with heavy vocal fry and a menacing growl. Thick West Country English accent "
-            "(Bristol/Cornwall) like Captain Barbossa from Pirates of the Caribbean. "
-            "Speaks with theatrical villainy and dramatic pauses like Geoffrey Rush. "
-            "Voice is damaged and weathered - rough, hoarse, sinister yet darkly humorous. "
-            "Has the intimidating rumble of Davy Jones but the sardonic wit of a cunning pirate captain."
+            "British male, 58 years old, STRONG British West Country accent from Cornwall, England. "
+            "NOT American. Speaks like a traditional English pirate from Bristol. "
+            "Deep gravelly voice with heavy vocal fry, raspy and weathered. "
+            "Sounds like Geoffrey Rush as Captain Barbossa - theatrical British villain. "
+            "Rolling Rs, dropped Hs, rural English dialect. Says 'arrr' with British pronunciation. "
+            "Gruff, menacing, but with dark British humor. Old sea captain from England."
         )
         logger.info(f"  Generating: '{text[:50]}...'")
         results = list(self._tts_model.generate_voice_design(
