@@ -89,8 +89,9 @@ piratebot/
 │   ├── kokoro_tts.py           # Kokoro + Rhubarb lip-sync
 │   └── godot_avatar.py         # WebSocket client for Godot
 ├── tools/                      # Offline processing tools
-│   ├── generate_voice_lines.py        # Linux TTS generator (CUDA)
-│   ├── generate_voice_lines_mac.py    # Mac TTS generator (MPS backend)
+│   ├── generate_voice_lines.py        # Linux TTS generator (CUDA, Qwen3-TTS)
+│   ├── generate_voice_lines_mac.py    # Mac TTS generator (MLX, Qwen3-TTS)
+│   ├── generate_voice_lines_moss.py   # Linux TTS generator (CUDA, MOSS-TTS)
 │   └── expand_voice_lines.py          # LLM voice line expansion
 ├── godot_project/              # Godot 4 project
 │   ├── scripts/
@@ -205,8 +206,14 @@ uv run python -m services.godot_avatar
 # Generate voice lines (Mac) - specific category
 uv run python tools/generate_voice_lines_mac.py --category greetings
 
-# Generate voice lines (Linux)
+# Generate voice lines (Linux, Qwen3-TTS)
 uv run python tools/generate_voice_lines.py --category greetings
+
+# Generate voice lines (Linux, MOSS-TTS) - requires MOSS-TTS installed separately
+python tools/generate_voice_lines_moss.py --test                    # Quick test (2 lines)
+python tools/generate_voice_lines_moss.py --model 1.7B              # Local 1.7B model
+python tools/generate_voice_lines_moss.py --model 8B                # Best quality 8B
+python tools/generate_voice_lines_moss.py --model voicegen          # Voice from text description
 
 # Expand voice lines with Ollama (dry-run shows what would happen)
 uv run python tools/expand_voice_lines.py --dry-run
