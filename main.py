@@ -5,13 +5,12 @@ PirateBot - Interactive Halloween Pirate Decoration
 Main orchestrator that coordinates all components:
 - Webcam person detection
 - Vision model for costume description
-- LLM for pirate banter generation (with tool-calling for voice line selection)
+- Direct semantic search for pre-generated voice line selection
 - Pre-generated voice line playback (or real-time TTS fallback)
 - 3D avatar control with lip-sync
 """
 
 import asyncio
-import json
 import logging
 import signal
 import sys
@@ -36,13 +35,9 @@ from interfaces import (
 # Voice line imports
 from services.voice_line_tts import VoiceLineTTS
 from services.voice_line_db import VoiceLineDB
-from services.voice_line_search import (
-    VoiceLineToolHandler,
-    VoiceLineSelection,
-    get_voice_line_system_prompt,
-    create_costume_user_prompt,
-)
-from services.ollama_llm import ToolResult
+from services.voice_line_search import VoiceLineSelection
+from services.appearance_cache import AppearanceCache
+from services.interaction_state import InteractionIntent, InteractionManager
 
 # Configure logging
 logging.basicConfig(
@@ -74,7 +69,6 @@ class PirateBot:
 
         # Voice line system
         self.voice_line_tts: Optional[VoiceLineTTS] = None
-        self.voice_line_handler: Optional[VoiceLineToolHandler] = None
         self.use_voice_lines = self.config.get("voice_lines", {}).get("enabled", True)
 
         # Webcam
@@ -83,6 +77,16 @@ class PirateBot:
         # State tracking
         self.last_interaction_time: dict[int, float] = {}  # track_id -> timestamp
         self.cooldown_seconds = self.config["detector"]["cooldown_seconds"]
+
+        # Appearance cache for cross-track re-identification
+        tracking_config = self.config.get("tracking", {})
+        self.appearance_cache = AppearanceCache(
+            ttl_seconds=tracking_config.get("appearance_cache_ttl", 600),
+            similarity_threshold=tracking_config.get("appearance_similarity", 0.85),
+        )
+
+        # Interaction state machine
+        self.interaction_manager = InteractionManager()
 
         # Load prompts (different for voice line mode vs real-time TTS)
         self.system_prompt = self.config["prompts"]["system"]
@@ -178,13 +182,6 @@ class PirateBot:
         )
         self.voice_line_tts.warmup()
 
-        # Initialize tool handler for LLM
-        self.voice_line_handler = VoiceLineToolHandler(self.voice_line_tts)
-
-        # Update system prompt for tool-calling mode
-        if vl_config.get("use_tool_calling", True):
-            self.system_prompt = get_voice_line_system_prompt()
-
         logger.info(f"Voice line system ready: {db.count()} lines available")
 
     def _setup_webcam(self) -> None:
@@ -275,15 +272,32 @@ class PirateBot:
             description = self.vlm.describe_image(photo, costume_prompt)
             logger.info(f"Costume description: {description}")
 
-            # 3. Generate response (different paths for voice lines vs real-time TTS)
-            if self.use_voice_lines and self.voice_line_handler:
-                audio_path = await self._process_with_voice_lines(description)
+            # 2.5. Determine interaction intent based on appearance cache
+            if self.appearance_cache.is_known(description):
+                intent = InteractionIntent.RETURNING
+                logger.info("Returning visitor detected, selecting returning greeting")
             else:
+                intent = InteractionIntent.COSTUME_REACT
+
+            # 3. Select voice line based on intent
+            if self.use_voice_lines and self.voice_line_tts:
+                audio_path = await self._process_with_intent(intent, description)
+            else:
+                # Real-time TTS fallback only uses costume react path
                 audio_path = await self._process_with_realtime_tts(description)
 
             if audio_path:
                 # 4. Play audio with lip-sync on avatar
                 await self.avatar.play_audio_with_lipsync(audio_path)
+
+            # Cache appearance and mark interacted on success
+            if intent == InteractionIntent.COSTUME_REACT:
+                self.appearance_cache.add(description)
+
+            if detection.track_id is not None:
+                self.interaction_manager.mark_interacted(
+                    detection.track_id, description
+                )
 
             # Update interaction tracking
             self._update_interaction_time(detection)
@@ -296,7 +310,7 @@ class PirateBot:
 
     async def _process_with_voice_lines(self, costume_description: str) -> Optional[Path]:
         """
-        Process using the voice line system with LLM tool-calling.
+        Process using direct semantic search against the voice line database.
 
         Args:
             costume_description: Description from VLM
@@ -304,25 +318,7 @@ class PirateBot:
         Returns:
             Path to audio file, or None if failed
         """
-        # Reset handler state
-        self.voice_line_handler.reset()
-
-        # Create user prompt for voice line selection
-        user_message = create_costume_user_prompt(costume_description)
-
-        # Use tool-calling to select voice line
-        vl_config = self.config.get("voice_lines", {})
-
-        if vl_config.get("use_tool_calling", True):
-            # LLM selects the voice line via tools
-            selected = await self._select_voice_line_with_tools(user_message)
-        else:
-            # Direct semantic search without LLM
-            selected = self._select_voice_line_direct(costume_description)
-
-        if not selected:
-            logger.warning("No voice line selected, using fallback")
-            selected = self.voice_line_handler.auto_select_best()
+        selected = self._select_voice_line_direct(costume_description)
 
         if not selected or not selected.line:
             logger.error("Failed to select any voice line")
@@ -336,85 +332,102 @@ class PirateBot:
 
         if not audio_path.exists():
             logger.error(f"Audio file missing: {audio_path}")
-            # Try fallback to real-time TTS if configured
+            vl_config = self.config.get("voice_lines", {})
             if vl_config.get("fallback_to_tts", False) and self.tts:
                 return await self._process_with_realtime_tts_text(selected.text)
             return None
 
         return audio_path
 
-    async def _select_voice_line_with_tools(self, user_message: str) -> Optional[VoiceLineSelection]:
+    async def _process_with_intent(
+        self, intent: InteractionIntent, costume_description: str
+    ) -> Optional[Path]:
         """
-        Use LLM tool-calling to select a voice line.
+        Select and resolve a voice line based on interaction intent.
 
         Args:
-            user_message: The user prompt with costume description
+            intent: COSTUME_REACT or RETURNING
+            costume_description: Description from VLM
 
         Returns:
-            Selected voice line, or None if failed
+            Path to audio file, or None if failed
         """
-        tools = self.voice_line_handler.get_tools()
-        max_iterations = 3  # Prevent infinite tool-calling loops
+        if intent == InteractionIntent.RETURNING:
+            selected = self._select_voice_line_for_intent(intent)
+        else:
+            selected = self._select_voice_line_direct(costume_description)
 
-        try:
-            # Initial generation with tools
-            result = self.llm.generate_with_tools(
-                self.system_prompt,
-                user_message,
-                tools,
-            )
-
-            conversation_history = [
-                {"role": "user", "content": user_message},
-                {"role": "assistant", "content": result.text, "tool_calls": [
-                    {"function": {"name": tc.name, "arguments": tc.arguments}, "id": tc.id}
-                    for tc in result.tool_calls
-                ] if result.tool_calls else None},
-            ]
-
-            iteration = 0
-            while result.has_tool_calls and iteration < max_iterations:
-                iteration += 1
-
-                # Execute tool calls
-                tool_results = []
-                for tool_call in result.tool_calls:
-                    tool_result = self.voice_line_handler.handle_tool_call(tool_call)
-                    tool_results.append(tool_result)
-
-                    logger.debug(f"Tool {tool_call.name}: {tool_result.content[:100]}...")
-
-                # Check if a line was selected
-                selected = self.voice_line_handler.get_selected_line()
-                if selected:
-                    return selected
-
-                # Continue conversation with tool results
-                result = self.llm.continue_with_tool_results(
-                    self.system_prompt,
-                    conversation_history,
-                    tool_results,
-                    tools,
-                )
-
-                # Update conversation history
-                for tr in tool_results:
-                    conversation_history.append({
-                        "role": "tool",
-                        "content": tr.content,
-                        "tool_call_id": tr.tool_call_id,
-                    })
-                conversation_history.append({
-                    "role": "assistant",
-                    "content": result.text,
-                })
-
-            # Check final selection
-            return self.voice_line_handler.get_selected_line()
-
-        except Exception as e:
-            logger.error(f"Tool-calling failed: {e}")
+        if not selected or not selected.line:
+            logger.warning(f"No voice line found for intent {intent.value}")
             return None
+
+        logger.info(
+            f"Selected voice line: {selected.line_id} "
+            f"(intent={intent.value}, method={selected.method})"
+        )
+
+        audio_path = self.voice_line_tts._get_audio_path(selected.line)
+        if not audio_path.exists():
+            logger.error(f"Audio file missing: {audio_path}")
+            return None
+
+        return audio_path
+
+    async def _play_farewell(self, state) -> None:
+        """
+        Play a farewell voice line for a departing person.
+
+        Lightweight path — no VLM, just picks a random farewell line.
+        """
+        if not self.use_voice_lines or not self.voice_line_tts:
+            return
+
+        db = self.voice_line_tts.get_db()
+        line = db.get_random_from_category("farewells")
+
+        if not line:
+            logger.debug("No farewell lines available")
+            return
+
+        audio_path = self.voice_line_tts._get_audio_path(line)
+        if not audio_path.exists():
+            logger.warning(f"Farewell audio missing: {audio_path}")
+            return
+
+        logger.info(
+            f"Playing farewell for track {state.track_id}: {line.text}"
+        )
+        await self.avatar.play_audio_with_lipsync(audio_path)
+
+    def _select_voice_line_for_intent(
+        self, intent: InteractionIntent
+    ) -> Optional[VoiceLineSelection]:
+        """
+        Select a voice line for non-costume-react intents.
+
+        Args:
+            intent: RETURNING or FAREWELL
+
+        Returns:
+            Selected voice line wrapped in VoiceLineSelection
+        """
+        db = self.voice_line_tts.get_db()
+
+        if intent == InteractionIntent.RETURNING:
+            line = db.get_random_from_category("greetings", "returning")
+        elif intent == InteractionIntent.FAREWELL:
+            line = db.get_random_from_category("farewells")
+        else:
+            return None
+
+        if line:
+            return VoiceLineSelection(
+                line=line,
+                text=line.text,
+                line_id=line.id,
+                method=f"random_{intent.value}",
+            )
+        return None
 
     def _select_voice_line_direct(self, costume_description: str) -> Optional[VoiceLineSelection]:
         """
@@ -520,7 +533,20 @@ class PirateBot:
                 # detections = self.detector.detect_people(frame)
                 detections = []  # Placeholder until detector is implemented
 
-                # Process each detection
+                # Get track lifecycle events from the most recent detect()
+                arrived, departed = self.detector.get_track_events()
+
+                # 1. Departures → farewell (no VLM, just play a farewell line)
+                for track_id in departed:
+                    state = self.interaction_manager.on_departure(track_id)
+                    if state and state.interacted:
+                        await self._play_farewell(state)
+
+                # 2. Arrivals → register in state manager
+                for track_id in arrived:
+                    self.interaction_manager.on_arrival(track_id)
+
+                # 3. Process detections (existing _should_interact filter)
                 for detection in detections:
                     if self._should_interact(detection):
                         await self.process_detection(frame, detection)
