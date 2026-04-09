@@ -6,14 +6,13 @@ All services implement these interfaces to enable easy swapping of implementatio
 from .detector import IDetector, Detection
 from .vision_model import IVisionModel
 from .language_model import ILanguageModel
-from .tts_engine import ITTSEngine
-from .avatar_controller import IAvatarController
+from .avatar_controller import IAvatarController, Viseme
 
 __all__ = [
     "IDetector",
     "Detection",
     "IVisionModel",
     "ILanguageModel",
-    "ITTSEngine",
     "IAvatarController",
+    "Viseme",
 ]

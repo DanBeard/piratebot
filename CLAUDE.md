@@ -7,11 +7,11 @@ This file provides context for AI assistants (Claude, etc.) working on this proj
 PirateBot is an interactive Halloween decoration featuring a 3D pirate character that:
 1. Detects approaching trick-or-treaters via webcam (YOLOv8)
 2. Captures their photo and describes their costume (Moondream2 VLM)
-3. Generates personalized pirate-themed banter (Ollama LLM)
-4. Speaks the response with a gruff voice (Kokoro TTS)
-5. Displays a 3D avatar with lip-sync (Godot 4)
+3. Selects a pre-generated pirate line via the cluster parrotts service
+4. Plays the cloned-voice audio and displays a 3D avatar with lip-sync (Godot 4)
 
-**All processing runs locally** on consumer GPUs - no cloud APIs.
+Vision + LLM run locally on consumer GPUs. Voice cloning + line generation
+runs on the shared homelab `parrotts` service.
 
 ## Architecture
 
@@ -20,15 +20,15 @@ PirateBot is an interactive Halloween decoration featuring a 3D pirate character
 │                        main.py (Orchestrator)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  Interfaces (Abstract Base Classes)                              │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐│
-│  │IDetector │ │IVisionMdl│ │ILangModel│ │ITTSEng  │ │IAvatar  ││
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬────┘ └────┬────┘│
-├───────┼────────────┼────────────┼────────────┼───────────┼──────┤
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │IDetector │ │IVisionMdl│ │ILangModel│ │IAvatar   │            │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘            │
+├───────┼────────────┼────────────┼────────────┼──────────────────┤
 │  Services (Implementations)                                      │
-│  ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐ ┌────┴────┐ ┌────┴────┐│
-│  │YoloDet   │ │Moondream │ │OllamaLLM │ │KokoroTTS│ │GodotAvtr││
-│  │(GPU 0)   │ │(GPU 1)   │ │(GPU 2)   │ │(GPU 0)  │ │(WS)     ││
-│  └──────────┘ └──────────┘ └──────────┘ └─────────┘ └─────────┘│
+│  ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐ ┌────────┐│
+│  │YoloDet   │ │Moondream │ │OllamaLLM │ │GodotAvtr │ │Parrotts││
+│  │(GPU 0)   │ │(GPU 1)   │ │(cluster) │ │(WS)      │ │TTS(HTTP)││
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └────────┘│
 └─────────────────────────────────────────────────────────────────┘
                                     │
                                     │ WebSocket (JSON)
@@ -50,12 +50,13 @@ All services implement abstract base classes in `interfaces/`. This allows:
 - Clear contracts between components
 
 ### 2. Multi-GPU Distribution
-The system distributes models across GPUs to fit in 10GB VRAM cards:
-- **GPU 0**: Display, YOLO detection, TTS (~2GB)
-- **GPU 1**: Moondream2 VLM (~5GB)
-- **GPU 2**: Ollama LLM (~4GB)
+- **Local GPU 0**: Display, YOLO detection
+- **Local GPU 1**: Moondream2 VLM (~5GB)
+- **Cluster (k3s-1 1080 Ti)**: parrotts (Chatterbox voice cloning, ~3GB)
+- **Cluster (k3s-8 RTX 3060)**: Ollama / litellm (Qwen3-14B)
 
-Configure via `CUDA_VISIBLE_DEVICES` environment variable.
+Local devices configured via `CUDA_VISIBLE_DEVICES`. Cluster services
+reached over the homelab network (`parrotts.default.svc.cluster.local`).
 
 ### 3. Python-First with Minimal Godot
 - All business logic in Python
@@ -80,18 +81,16 @@ piratebot/
 │   ├── detector.py             # IDetector, Detection dataclass
 │   ├── vision_model.py         # IVisionModel
 │   ├── language_model.py       # ILanguageModel, GenerationConfig/Result
-│   ├── tts_engine.py           # ITTSEngine, TTSConfig/Result, Viseme
-│   └── avatar_controller.py    # IAvatarController, Expression, Animation
+│   └── avatar_controller.py    # IAvatarController, Expression, Animation, Viseme
 ├── services/                   # Concrete implementations
 │   ├── yolo_detector.py        # YOLOv8 with tracking
 │   ├── moondream_vlm.py        # Moondream2 VLM
 │   ├── ollama_llm.py           # Ollama REST API client
-│   ├── kokoro_tts.py           # Kokoro + Rhubarb lip-sync
+│   ├── parrotts_tts.py         # Cluster parrotts service adapter (only voice path)
+│   ├── parrotts_vendor/        # Vendored parrotts HTTP client (~325 LoC)
 │   └── godot_avatar.py         # WebSocket client for Godot
-├── tools/                      # Offline processing tools
-│   ├── generate_voice_lines.py        # Linux TTS generator (CUDA)
-│   ├── generate_voice_lines_mac.py    # Mac TTS generator (MPS backend)
-│   └── expand_voice_lines.py          # LLM voice line expansion
+├── tools/
+│   └── migrate_to_parrotts.py  # Seed parrotts from voice_lines.yaml
 ├── godot_project/              # Godot 4 project
 │   ├── scripts/
 │   │   ├── websocket_server.gd # Autoload, receives commands
@@ -129,7 +128,8 @@ Key `config.yaml` sections:
 - `detector.*`: YOLO model and thresholds
 - `vlm.*`: Moondream model and prompt
 - `llm.*`: Ollama URL, model, generation params
-- `tts.*`: Voice selection, output directory
+- `parrotts.*`: Cluster parrotts TTS service — base_url, character, cache_dir.
+  Run `python tools/migrate_to_parrotts.py` once to seed the line library.
 - `avatar.*`: Godot WebSocket host/port
 - `prompts.*`: System prompt and user template
 - `idle.*`: Random idle phrases when no one is around

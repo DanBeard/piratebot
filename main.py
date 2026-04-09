@@ -5,8 +5,7 @@ PirateBot - Interactive Halloween Pirate Decoration
 Main orchestrator that coordinates all components:
 - Webcam person detection
 - Vision model for costume description
-- Direct semantic search for pre-generated voice line selection
-- Pre-generated voice line playback (or real-time TTS fallback)
+- Pre-generated voice line lookup via the cluster ``parrotts`` service
 - 3D avatar control with lip-sync
 """
 
@@ -27,17 +26,13 @@ from interfaces import (
     IDetector,
     IVisionModel,
     ILanguageModel,
-    ITTSEngine,
     IAvatarController,
     Detection,
 )
 
-# Voice line imports
-from services.voice_line_tts import VoiceLineTTS
-from services.voice_line_db import VoiceLineDB
-from services.voice_line_search import VoiceLineSelection
 from services.appearance_cache import AppearanceCache
 from services.interaction_state import InteractionIntent, InteractionManager
+from services.parrotts_tts import ParrottsTTS, VoiceLineSelection
 
 # Configure logging
 logging.basicConfig(
@@ -64,12 +59,8 @@ class PirateBot:
         self.detector: Optional[IDetector] = None
         self.vlm: Optional[IVisionModel] = None
         self.llm: Optional[ILanguageModel] = None
-        self.tts: Optional[ITTSEngine] = None
+        self.tts: Optional[ParrottsTTS] = None
         self.avatar: Optional[IAvatarController] = None
-
-        # Voice line system
-        self.voice_line_tts: Optional[VoiceLineTTS] = None
-        self.use_voice_lines = self.config.get("voice_lines", {}).get("enabled", True)
 
         # Webcam
         self.cap: Optional[cv2.VideoCapture] = None
@@ -103,86 +94,56 @@ class PirateBot:
         """Initialize all components."""
         logger.info("Setting up PirateBot components...")
 
-        # Import and instantiate implementations
         from services.yolo_detector import YoloDetector
         from services.moondream_vlm import MoondreamVLM
         from services.ollama_llm import OllamaLLM
-        from services.kokoro_tts import KokoroTTS
         from services.godot_avatar import GodotAvatarController
 
-        # Initialize detector
         self.detector = YoloDetector(
             model=self.config["detector"]["model"],
             confidence_threshold=self.config["detector"]["confidence_threshold"],
         )
         self.detector.warmup()
 
-        # Initialize VLM
         self.vlm = MoondreamVLM(
             model_id=self.config["vlm"]["model_id"],
             device=f"cuda:{self.config['gpu']['vlm']}",
         )
         self.vlm.warmup()
 
-        # Initialize LLM
         self.llm = OllamaLLM(
             base_url=self.config["llm"]["base_url"],
             model=self.config["llm"]["model"],
         )
         self.llm.warmup()
 
-        # Initialize Voice Line System (if enabled)
-        if self.use_voice_lines:
-            await self._setup_voice_lines()
-        else:
-            # Fall back to real-time TTS
-            self.tts = KokoroTTS(
-                voice=self.config["tts"]["voice"],
-                output_dir=self.config["tts"]["output_dir"],
-            )
-            self.tts.warmup()
+        await self._setup_parrotts()
 
-        # Initialize Avatar
         self.avatar = GodotAvatarController(
             host=self.config["avatar"]["host"],
             port=self.config["avatar"]["port"],
         )
         await self.avatar.connect()
 
-        # Initialize webcam
         self._setup_webcam()
 
         logger.info("All components initialized")
 
-    async def _setup_voice_lines(self) -> None:
-        """Initialize the voice line system."""
-        vl_config = self.config.get("voice_lines", {})
-
-        logger.info("Setting up voice line system...")
-
-        # Initialize VoiceLineDB and load lines from YAML
-        db_path = vl_config.get("db_path", "data/voice_line_db")
-        yaml_path = vl_config.get("yaml_path", "data/voice_lines.yaml")
-        audio_path = vl_config.get("audio_path", "godot_project/assets/audio")
-
-        db = VoiceLineDB(
-            db_path=db_path,
-            recently_used_cooldown=vl_config.get("recently_used_cooldown", 300),
+    async def _setup_parrotts(self) -> None:
+        """Initialize the parrotts cluster TTS backend."""
+        pt_config = self.config["parrotts"]
+        logger.info(
+            "Setting up parrotts TTS (base_url=%s character=%s)",
+            pt_config["base_url"],
+            pt_config["character"],
         )
-
-        # Load voice lines from YAML if database is empty
-        if db.count() == 0 and Path(yaml_path).exists():
-            count = db.load_from_yaml(yaml_path)
-            logger.info(f"Loaded {count} voice lines from {yaml_path}")
-
-        # Initialize VoiceLineTTS
-        self.voice_line_tts = VoiceLineTTS(
-            db_path=db_path,
-            audio_base_path=audio_path,
+        self.tts = ParrottsTTS(
+            base_url=pt_config["base_url"],
+            character=pt_config["character"],
+            cache_dir=pt_config.get("cache_dir", "data/parrotts_cache"),
         )
-        self.voice_line_tts.warmup()
-
-        logger.info(f"Voice line system ready: {db.count()} lines available")
+        self.tts.warmup()
+        logger.info("Parrotts TTS ready")
 
     def _setup_webcam(self) -> None:
         """Initialize webcam capture."""
@@ -280,11 +241,7 @@ class PirateBot:
                 intent = InteractionIntent.COSTUME_REACT
 
             # 3. Select voice line based on intent
-            if self.use_voice_lines and self.voice_line_tts:
-                audio_path = await self._process_with_intent(intent, description)
-            else:
-                # Real-time TTS fallback only uses costume react path
-                audio_path = await self._process_with_realtime_tts(description)
+            audio_path = await self._process_with_intent(intent, description)
 
             if audio_path:
                 # 4. Play audio with lip-sync on avatar
@@ -308,50 +265,10 @@ class PirateBot:
         except Exception as e:
             logger.error(f"Error processing detection: {e}", exc_info=True)
 
-    async def _process_with_voice_lines(self, costume_description: str) -> Optional[Path]:
-        """
-        Process using direct semantic search against the voice line database.
-
-        Args:
-            costume_description: Description from VLM
-
-        Returns:
-            Path to audio file, or None if failed
-        """
-        selected = self._select_voice_line_direct(costume_description)
-
-        if not selected or not selected.line:
-            logger.error("Failed to select any voice line")
-            return None
-
-        logger.info(f"Selected voice line: {selected.line_id} ({selected.method})")
-        logger.info(f"Voice line text: {selected.text}")
-
-        # Get the audio file path
-        audio_path = self.voice_line_tts._get_audio_path(selected.line)
-
-        if not audio_path.exists():
-            logger.error(f"Audio file missing: {audio_path}")
-            vl_config = self.config.get("voice_lines", {})
-            if vl_config.get("fallback_to_tts", False) and self.tts:
-                return await self._process_with_realtime_tts_text(selected.text)
-            return None
-
-        return audio_path
-
     async def _process_with_intent(
         self, intent: InteractionIntent, costume_description: str
     ) -> Optional[Path]:
-        """
-        Select and resolve a voice line based on interaction intent.
-
-        Args:
-            intent: COSTUME_REACT or RETURNING
-            costume_description: Description from VLM
-
-        Returns:
-            Path to audio file, or None if failed
-        """
+        """Select and resolve a voice line based on interaction intent."""
         if intent == InteractionIntent.RETURNING:
             selected = self._select_voice_line_for_intent(intent)
         else:
@@ -366,52 +283,33 @@ class PirateBot:
             f"(intent={intent.value}, method={selected.method})"
         )
 
-        audio_path = self.voice_line_tts._get_audio_path(selected.line)
-        if not audio_path.exists():
-            logger.error(f"Audio file missing: {audio_path}")
+        try:
+            return self.tts._get_audio_path(selected.line)
+        except Exception as e:
+            logger.error(f"Failed to fetch audio for {selected.line_id}: {e}")
             return None
 
-        return audio_path
-
     async def _play_farewell(self, state) -> None:
-        """
-        Play a farewell voice line for a departing person.
-
-        Lightweight path — no VLM, just picks a random farewell line.
-        """
-        if not self.use_voice_lines or not self.voice_line_tts:
-            return
-
-        db = self.voice_line_tts.get_db()
-        line = db.get_random_from_category("farewells")
-
+        """Play a farewell voice line for a departing person."""
+        line = self.tts.get_db().get_random_from_category("farewells")
         if not line:
             logger.debug("No farewell lines available")
             return
 
-        audio_path = self.voice_line_tts._get_audio_path(line)
-        if not audio_path.exists():
-            logger.warning(f"Farewell audio missing: {audio_path}")
+        try:
+            audio_path = self.tts._get_audio_path(line)
+        except Exception as e:
+            logger.warning(f"Farewell fetch failed for {line.id}: {e}")
             return
 
-        logger.info(
-            f"Playing farewell for track {state.track_id}: {line.text}"
-        )
+        logger.info(f"Playing farewell for track {state.track_id}: {line.text}")
         await self.avatar.play_audio_with_lipsync(audio_path)
 
     def _select_voice_line_for_intent(
         self, intent: InteractionIntent
     ) -> Optional[VoiceLineSelection]:
-        """
-        Select a voice line for non-costume-react intents.
-
-        Args:
-            intent: RETURNING or FAREWELL
-
-        Returns:
-            Selected voice line wrapped in VoiceLineSelection
-        """
-        db = self.voice_line_tts.get_db()
+        """Select a voice line for non-costume-react intents."""
+        db = self.tts.get_db()
 
         if intent == InteractionIntent.RETURNING:
             line = db.get_random_from_category("greetings", "returning")
@@ -430,20 +328,10 @@ class PirateBot:
         return None
 
     def _select_voice_line_direct(self, costume_description: str) -> Optional[VoiceLineSelection]:
-        """
-        Select voice line using direct semantic search (no LLM).
-
-        Args:
-            costume_description: Description from VLM
-
-        Returns:
-            Selected voice line
-        """
-        # Extract costume type from description (simple keyword extraction)
+        """Select voice line using direct semantic search against parrotts."""
         costume_type = self._extract_costume_type(costume_description)
 
-        # Search for matching line
-        line = self.voice_line_tts.get_best_line(
+        line = self.tts.get_best_line(
             desired_text=f"React to a {costume_type} costume",
             category_hint="costume_reactions",
             costume_type=costume_type,
@@ -456,12 +344,10 @@ class PirateBot:
                 line_id=line.id,
                 method="direct_search",
             )
-
         return None
 
     def _extract_costume_type(self, description: str) -> str:
-        """Extract costume type from VLM description."""
-        # Simple keyword matching
+        """Extract costume type from VLM description via keyword scan."""
         keywords = [
             "vampire", "zombie", "ghost", "skeleton", "witch", "wizard",
             "mummy", "werewolf", "frankenstein", "monster",
@@ -471,49 +357,11 @@ class PirateBot:
             "cat", "dog", "dinosaur", "shark", "animal",
             "pirate", "astronaut", "doctor", "nurse",
         ]
-
         description_lower = description.lower()
         for keyword in keywords:
             if keyword in description_lower:
                 return keyword
-
         return "generic"
-
-    async def _process_with_realtime_tts(self, costume_description: str) -> Optional[Path]:
-        """
-        Process using real-time TTS (legacy mode).
-
-        Args:
-            costume_description: Description from VLM
-
-        Returns:
-            Path to audio file
-        """
-        # Generate pirate response
-        user_message = self.user_template.format(costume_description=costume_description)
-        result = self.llm.generate(self.system_prompt, user_message)
-        pirate_response = result.text
-        logger.info(f"Pirate response: {pirate_response}")
-
-        return await self._process_with_realtime_tts_text(pirate_response)
-
-    async def _process_with_realtime_tts_text(self, text: str) -> Optional[Path]:
-        """
-        Synthesize text using real-time TTS.
-
-        Args:
-            text: Text to synthesize
-
-        Returns:
-            Path to audio file
-        """
-        audio_filename = f"response_{int(time.time())}.wav"
-        audio_path = Path(self.config["tts"]["output_dir"]) / audio_filename
-
-        self.tts.synthesize_to_file(text, audio_path)
-        logger.info(f"Audio synthesized: {audio_path}")
-
-        return audio_path
 
     async def run(self) -> None:
         """Main event loop."""
@@ -575,8 +423,6 @@ class PirateBot:
             self.vlm.cleanup()
         if self.tts:
             self.tts.cleanup()
-        if self.voice_line_tts:
-            self.voice_line_tts.cleanup()
         if self.avatar:
             await self.avatar.disconnect()
 

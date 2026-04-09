@@ -16,7 +16,7 @@ from interfaces.avatar_controller import (
     Animation,
     GazeTarget,
 )
-from interfaces.tts_engine import Viseme
+from interfaces.avatar_controller import Viseme
 
 logger = logging.getLogger(__name__)
 

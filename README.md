@@ -169,41 +169,35 @@ See `./quickstart_mac.sh --help` for all options.
 
 ---
 
-## Pre-Generated Voice Lines (Recommended)
+## Voice Lines via Parrotts
 
-Instead of real-time TTS, PirateBot can use pre-generated audio for faster, more consistent responses.
+Voice cloning + line generation lives in the cluster [parrotts](../parrotts/)
+service. piratebot searches it, downloads resolved audio into a local cache
+on first hit, and the avatar runs Rhubarb against the cached wav for
+lip-sync. There is no other voice path.
 
-### Generate Voice Lines
-
-**On Mac (Apple Silicon):**
-```bash
-./quickstart_mac.sh
+```yaml
+# config.yaml
+parrotts:
+  base_url: "http://parrotts.default.svc.cluster.local:8000"
+  character: "pirate"
+  cache_dir: "data/parrotts_cache"
 ```
 
-**On Linux (NVIDIA GPU):**
-```bash
-python tools/generate_voice_lines.py
-```
-
-### Expand Voice Lines (Optional)
-
-Use Ollama to generate more variations of each line:
-```bash
-# Requires Ollama running: ollama serve
-python tools/expand_voice_lines.py --variations 3
-```
-
-This expands 57 base lines to ~200+ variations for more natural conversations.
-
-### Test Generated Audio
+One-time setup — register the character + bulk-generate the line library:
 
 ```bash
-# Mac
-afplay godot_project/assets/audio/greetings/greetings_general_000.wav
-
-# Linux
-aplay godot_project/assets/audio/greetings/greetings_general_000.wav
+# Inside the cluster (or via kubectl port-forward svc/parrotts 18003:8000):
+python tools/migrate_to_parrotts.py --base-url http://localhost:18003
 ```
+
+The migration registers the pirate character from
+`data/pirate_voice_sample.{wav,txt}` and submits every line from
+`data/voice_lines.yaml` as one batch. Re-runs are cheap — parrotts
+content-addresses by `(character, text, engine, settings)` so cache hits
+resolve instantly.
+
+To add new lines, edit `data/voice_lines.yaml` and re-run the migration.
 
 ---
 
@@ -222,10 +216,11 @@ gpu:
   vlm: 1              # Moondream2
   llm: 2              # Ollama
 
-# Pirate voice (try different ones!)
-tts:
-  voice: "am_adam"    # Male voices: am_adam, am_michael, bm_george
-                      # Female voices: af_bella, af_nicole, af_sky
+# Voice cloning + line library (cluster service)
+parrotts:
+  base_url: "http://parrotts.default.svc.cluster.local:8000"
+  character: "pirate"
+  cache_dir: "data/parrotts_cache"
 
 # How long to wait before commenting on the same person again
 detector:
@@ -296,11 +291,10 @@ idle:
 
 ### Change the Voice
 
-Available Kokoro voices:
-- **American Male**: `am_adam`, `am_michael`
-- **American Female**: `af_bella`, `af_nicole`, `af_sarah`, `af_sky`
-- **British Male**: `bm_george`, `bm_lewis`
-- **British Female**: `bf_emma`, `bf_isabella`
+Voice cloning is owned by the cluster parrotts service. To swap voices,
+register a new character there with a fresh reference clip + transcript,
+then point `parrotts.character` in `config.yaml` at the new name. See
+[parrotts docs](../parrotts/README.md) for the registration API.
 
 ---
 
@@ -397,14 +391,14 @@ piratebot/
 │   ├── detector.py      # Person detection interface
 │   ├── vision_model.py  # Costume description interface
 │   ├── language_model.py# Text generation interface
-│   ├── tts_engine.py    # Speech synthesis interface
-│   └── avatar_controller.py # Avatar control interface
+│   └── avatar_controller.py # Avatar control interface (+ Viseme dataclass)
 │
 ├── services/            # Actual implementations
 │   ├── yolo_detector.py # Uses YOLOv8
 │   ├── moondream_vlm.py # Uses Moondream2
 │   ├── ollama_llm.py    # Uses Ollama
-│   ├── kokoro_tts.py    # Uses Kokoro TTS
+│   ├── parrotts_tts.py  # Cluster parrotts service adapter
+│   ├── parrotts_vendor/ # Vendored parrotts HTTP client
 │   └── godot_avatar.py  # Talks to Godot via WebSocket
 │
 ├── tools/               # Offline processing tools

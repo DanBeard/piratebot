@@ -26,7 +26,7 @@ vlm:
   model_id: "vikhyatk/moondream2"
   revision: "2025-01-09"        # Pin to specific revision for stability
   device: "cuda"
-  prompt: "Describe this person's Halloween costume in one brief sentence. Focus on what character or thing they are dressed as."
+  prompt: "Describe the color and type of costume in 3-5 words."
 
 # Language Model (Ollama)
 llm:
@@ -35,23 +35,12 @@ llm:
   max_tokens: 100               # Keep responses short
   temperature: 0.8              # Some creativity for variety
 
-# Text-to-Speech (Kokoro) - Legacy, used as fallback
-tts:
-  model: "kokoro-v0_19"
-  voice: "af_sky"               # Try different voices: am_adam, af_nicole, etc.
-  speed: 1.0
-  output_dir: "godot_project/assets/audio"
-
-# Pre-generated Voice Lines (Recommended)
-voice_lines:
-  enabled: true                  # Use pre-generated voice lines instead of real-time TTS
-  db_path: "data/voice_line_db"  # ChromaDB database path
-  yaml_path: "data/voice_lines.yaml"  # Voice line definitions
-  audio_path: "godot_project/assets/audio"  # Pre-generated audio files
-  use_tool_calling: true         # Use LLM tool-calling to select lines
-  fallback_to_tts: false         # If true, fall back to real-time TTS when no match
-  recently_used_cooldown: 300    # Seconds before reusing same line (5 min)
-  similarity_threshold: 0.65     # Minimum similarity score for matches
+# Parrotts cluster TTS — the only voice backend.
+# Run tools/migrate_to_parrotts.py once to seed the character + line library.
+parrotts:
+  base_url: "http://parrotts.default.svc.cluster.local:8000"
+  character: "pirate"
+  cache_dir: "data/parrotts_cache"
 
 # Avatar (Godot WebSocket)
 avatar:
@@ -77,6 +66,11 @@ prompts:
     A trick-or-treater just arrived! Here's what I see: {costume_description}
 
     Give them a short, fun pirate comment about their costume!
+
+# Tracking — cross-track re-identification
+tracking:
+  appearance_cache_ttl: 600      # 10 min — how long to remember costumes
+  appearance_similarity: 0.85    # fuzzy match threshold for descriptions
 
 # Idle behavior (when no one is around)
 idle:

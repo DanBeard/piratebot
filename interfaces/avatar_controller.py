@@ -8,7 +8,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
 
-from .tts_engine import Viseme
+
+@dataclass
+class Viseme:
+    """A single viseme (mouth shape) with timing — produced by Rhubarb."""
+
+    shape: str          # "A", "E", "I", "O", "U", "rest", etc.
+    start_time: float   # seconds from audio start
+    end_time: float
 
 
 class Expression(Enum):
