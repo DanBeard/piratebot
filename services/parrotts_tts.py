@@ -32,10 +32,14 @@ from services.parrotts_vendor import ParrottsClient, ParrottsError
 logger = logging.getLogger(__name__)
 
 
-# Search match thresholds — same numbers we shipped on the legacy
-# ChromaDB path so retrieval behavior stays consistent.
-EXCELLENT_MATCH_THRESHOLD = 0.85
-GOOD_MATCH_THRESHOLD = 0.65
+# Search match thresholds calibrated for nomic-embed-text-v2-moe (the
+# embedding model parrotts uses). nomic returns lower raw cosines than
+# sentence-transformers all-MiniLM (where the legacy thresholds were 0.85
+# and 0.65) — short-text semantic matches typically land in the 0.40-0.50
+# range. Verified empirically: "React to a vampire costume" against the
+# pirate vampire line scores 0.455.
+EXCELLENT_MATCH_THRESHOLD = 0.45
+GOOD_MATCH_THRESHOLD = 0.35
 
 
 @dataclass
@@ -84,8 +88,6 @@ def _line_from_parrotts(meta: dict) -> VoiceLine:
         subcategory=meta.get("subcategory") or "",
         tags=list(meta.get("tags") or []),
         emotion=meta.get("emotion") or "neutral",
-        audio_file=None,
-        viseme_file=None,
     )
 
 
