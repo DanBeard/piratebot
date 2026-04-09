@@ -82,7 +82,7 @@ def ensure_character(
     spec = _Spec()
     spec.name = name
     spec.display_name = display_name
-    spec.default_engine = "chatterbox"
+    spec.default_engine = "sovits"
     spec.voice_settings = {}
     spec.tags = ["pirate"]
 
