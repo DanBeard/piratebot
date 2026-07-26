@@ -17,10 +17,11 @@ using String = std::string;
 #define OUTPUT 0x01
 #define INPUT 0x00
 
+extern unsigned long mock_millis_value;
 inline unsigned long millis() {
-    static unsigned long t = 0;
-    return t += 10;
+    return mock_millis_value;
 }
+inline void setMockMillis(unsigned long v) { mock_millis_value = v; }
 
 inline void delay(unsigned long) {}
 

@@ -8,6 +8,7 @@ EffectEngine::EffectEngine() {
         last_fire_ms_[i] = 0;
         active_[i] = false;
         segment_start_ms_[i] = 0;
+        delay_ms_[i] = 0;
         segment_index_[i] = 0;
         repeat_count_[i] = 0;
     }
@@ -46,7 +47,7 @@ bool EffectEngine::canFire(uint8_t idx) {
     if (active_[idx]) return false;
     uint32_t now = millis();
     // last_fire_ms_ == 0 means the prop has never fired; allow first fire.
-    if (last_fire_ms_[idx] != 0 && now - last_fire_ms_[idx] < profiles_[idx]->cooldown_ms) return false;
+    if (last_fire_ms_[idx] != 0 && (uint32_t)(now - last_fire_ms_[idx]) < profiles_[idx]->cooldown_ms) return false;
     return true;
 }
 
@@ -68,7 +69,6 @@ bool EffectEngine::handleMessage(const Message& msg) {
     if (idx < 0) return false;
     if (!canFire(idx)) return false;
 
-    // Honor delay_ms
     int32_t delay = 0;
     if (msg.timing.has_delay) delay = msg.timing.delay_ms;
     uint32_t now = millis();
@@ -76,7 +76,10 @@ bool EffectEngine::handleMessage(const Message& msg) {
     active_[idx] = true;
     segment_index_[idx] = 0;
     repeat_count_[idx] = 0;
-    segment_start_ms_[idx] = now + delay;
+    // Store the moment the message was accepted. The delay is subtracted in
+    // update() so that elapsed time is overflow-safe via uint32_t subtraction.
+    segment_start_ms_[idx] = now;
+    delay_ms_[idx] = delay;
 
     // Apply payload overrides if present
     const EffectProfile* p = profiles_[idx];
@@ -95,15 +98,18 @@ void EffectEngine::update() {
         if (!active_[idx]) continue;
         const EffectProfile* p = profiles_[idx];
 
-        // Hard off at max_on_ms relative to segment start
+        // Hard off at max_on_ms relative to segment start (overflow-safe)
         uint32_t total_on = now - segment_start_ms_[idx];
-        if (p->max_on_ms > 0 && total_on >= p->max_on_ms) {
+        if (p->max_on_ms > 0 && (uint32_t)total_on >= p->max_on_ms) {
             complete(idx);
             continue;
         }
 
-        // Wait for delay to elapse
-        if (now < segment_start_ms_[idx]) continue;
+        // Wait for delay to elapse, then run segments. Elapsed time uses
+        // unsigned subtraction which is overflow-safe across the uint32_t wrap.
+        uint32_t elapsed = now - segment_start_ms_[idx];
+        if (elapsed < (uint32_t)delay_ms_[idx]) continue;
+        elapsed -= delay_ms_[idx];
 
         uint8_t seg_idx = segment_index_[idx];
         if (seg_idx >= p->segment_count) {
@@ -112,20 +118,20 @@ void EffectEngine::update() {
         }
 
         const GpioSegment& seg = p->segments[seg_idx];
-        uint32_t elapsed = now - segment_start_ms_[idx];
         uint32_t cycle = seg.on_ms + seg.off_ms;
 
         if (elapsed < seg.on_ms) {
             setPin(seg, true);
-        } else if (elapsed < cycle) {
+        } else if (cycle == 0 || elapsed < cycle) {
             setPin(seg, false);
         } else {
             if (repeat_count_[idx] < seg.repeat) {
                 repeat_count_[idx]++;
-                segment_start_ms_[idx] = now;
+                // Reset segment start so elapsed is measured from the repeat.
+                segment_start_ms_[idx] = now - delay_ms_[idx];
             } else {
                 segment_index_[idx]++;
-                segment_start_ms_[idx] = now;
+                segment_start_ms_[idx] = now - delay_ms_[idx];
                 repeat_count_[idx] = 0;
                 setPin(seg, false);
             }

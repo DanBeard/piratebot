@@ -34,6 +34,7 @@ private:
     uint32_t last_fire_ms_[MAX_PROFILES];
     bool active_[MAX_PROFILES];
     uint32_t segment_start_ms_[MAX_PROFILES];
+    int32_t delay_ms_[MAX_PROFILES];
     uint8_t segment_index_[MAX_PROFILES];
     uint8_t repeat_count_[MAX_PROFILES];
 
