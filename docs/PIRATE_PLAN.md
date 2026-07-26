@@ -212,6 +212,26 @@ uv run python tools/batch_rhubarb.py
 
 ---
 
+## Tools / debug
+
+| File | Purpose |
+|---|---|
+| `tools/debug_interaction.py` | **(planned)** Text-based PirateBot simulator. Enter a costume description or kid line and see the chosen voice line + prop triggers without a webcam. |
+
+---
+
+## In-progress / next-up TODO list
+
+1. **Wire broker perception fuser** — connect `PerceptionFuser` to the message bus and add experience/scene rules.
+2. **Map old Helm story beats to new prop mesh** — translate 2021 ambiance/pumpkins/cannon beats into fuser rules.
+3. **Zigbee2MQTT device mapping** — fill in friendly names in `props/broker/mesh_broker.py` once hardware is installed.
+4. **Field test the broker + displays + ESP32 props** on a laptop without cameras or cluster.
+5. **Restore `parrotts` cluster service** once GPU capacity is available.
+6. **Generate portrait PNG assets** once the art pipeline is ready.
+7. **Build `tools/debug_interaction.py`** — a text-based PirateBot walkthrough/simulator so we can enter costume descriptions or kid lines and see the chosen voice line + prop reactions without buying 1000 costumes.
+
+---
+
 ## Future improvements (post-2026)
 
 - Add a real 3D rigged pirate model and switch back to Godot.
