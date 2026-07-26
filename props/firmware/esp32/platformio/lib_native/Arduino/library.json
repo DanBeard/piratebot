@@ -1,0 +1,7 @@
+{
+  "name": "Arduino",
+  "version": "0.0.1",
+  "description": "Mock Arduino core for native unit tests",
+  "frameworks": "*",
+  "platforms": "*"
+}

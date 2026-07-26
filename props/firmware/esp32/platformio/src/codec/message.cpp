@@ -5,15 +5,15 @@
 namespace piratebot {
 
 static void readTiming(JsonObjectConst obj, Timing &t) {
-    if (obj.containsKey("delay_ms")) {
+    if (obj["delay_ms"].is<int>()) {
         t.delay_ms = obj["delay_ms"];
         t.has_delay = true;
     }
-    if (obj.containsKey("at_ts")) {
+    if (obj["at_ts"].is<double>() || obj["at_ts"].is<float>()) {
         t.at_ts = obj["at_ts"];
         t.has_at_ts = true;
     }
-    if (obj.containsKey("expire_ms")) {
+    if (obj["expire_ms"].is<int>()) {
         t.expire_ms = obj["expire_ms"];
         t.has_expire = true;
     }

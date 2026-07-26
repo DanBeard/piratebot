@@ -45,7 +45,8 @@ void EffectEngine::setPin(const GpioSegment& seg, bool on) {
 bool EffectEngine::canFire(uint8_t idx) {
     if (active_[idx]) return false;
     uint32_t now = millis();
-    if (now - last_fire_ms_[idx] < profiles_[idx]->cooldown_ms) return false;
+    // last_fire_ms_ == 0 means the prop has never fired; allow first fire.
+    if (last_fire_ms_[idx] != 0 && now - last_fire_ms_[idx] < profiles_[idx]->cooldown_ms) return false;
     return true;
 }
 
