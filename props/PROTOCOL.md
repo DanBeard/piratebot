@@ -20,7 +20,8 @@ Every message on the mesh is a JSON object with this envelope:
   },
   "meta": {
     "seq": 42,
-    "session": "halloween-2026"
+    "session": "halloween-2026",
+    "codecs": ["json", "cbor"]
   },
   "timestamp": 1785079673.44
 }
@@ -37,6 +38,7 @@ Every message on the mesh is a JSON object with this envelope:
 | `timing.expire_ms` | int \| null | Drop the event if it cannot be executed within this window. |
 | `meta.seq` | int | Monotonic sequence number from the source. |
 | `meta.session` | string | Show/session ID, useful for avoiding stale events. |
+| `meta.codecs` | list[string] | Codecs the sender supports: `["json", "cbor"]` by default. |
 | `timestamp` | float | When the message was emitted. |
 
 ## Topic conventions
@@ -95,9 +97,10 @@ Topics are dot-separated and read from left to right:
 
 | Topic | Payload |
 |-------|---------|
-| `prop.state.announce` | `{id, capabilities: ["effects.thunder.clap", "sensors.pir.motion"]}` |
+| `prop.state.announce` | `{id, capabilities: ["effects.thunder.clap", "sensors.pir.motion"], codecs: ["json", "cbor"]}` |
 | `prop.state.heartbeat` | `{id, uptime_s, load}` |
 | `prop.state.error` | `{id, error, topic}` |
+| `prop.state.topics` | `{map: {"effects.thunder.clap": 1, ...}}` (binary topic-ID assignment) |
 
 ## Timing rules
 
@@ -109,6 +112,42 @@ Topics are dot-separated and read from left to right:
 
 This lets the publisher schedule synchronized multi-prop effects without
 needing every prop's clock to be perfect.
+
+## Serialization
+
+### JSON
+Default transport. Human-readable, works everywhere.
+
+### CBOR
+Compact binary representation of the same envelope. Props and clients
+negotiate support by advertising `meta.codecs` in `prop.state.announce`.
+CBOR is recommended for bandwidth-constrained transports such as ESP-NOW
+or crowded 2.4 GHz WiFi.
+
+### Framed binary
+For very constrained links, messages can be sent in a tiny framed
+envelope:
+
+```
+[magic:2][version:1][flags:1][codec:1][payload_len:2][payload:N]
+```
+
+- `magic` is always `0x50 0x42` ("PB").
+- `version` is `0x01`. New transports must bump this only when the header
+  shape changes.
+- `flags` bits:
+  - `0x01` `FLAG_FLOOD_MESH` — message may be relayed up to N hops
+    (future ESP-NOW flood mesh).
+  - `0x02` `FLAG_TLV_BINARY` — payload is a custom packed format instead
+    of CBOR (future).
+  - Remaining bits reserved.
+- `codec` byte: `0x01` JSON, `0x02` CBOR, `0x03`+ reserved.
+- `payload_len` is a 16-bit unsigned big-endian integer. Max payload is
+  65535 bytes.
+
+The framed format lets receivers detect the protocol without deep
+inspection. The `version` and `flags` bytes make future flood-mesh and
+binary-schema extensions easy to add without breaking older props.
 
 ## Discovery
 
@@ -128,11 +167,16 @@ and receive:
 ## Transport notes
 
 - **WebSocket**: reliable, ordered, star topology. Good for the portrait
-  and Raspberry Pi props.
-- **MQTT**: add a broker bridge for existing ESP32 props that already
-  speak MQTT.
+  and Raspberry Pi props. The default codec is JSON; CBOR can be
+  negotiated via `prop.state.announce`.
+- **MQTT**: add a broker bridge for existing ESP32 props, smart plugs,
+  and Zigbee2MQTT devices that already speak MQTT.
 - **UDP multicast**: broadcast discovery and fire-and-forget events where
   ordering doesn't matter.
+- **ESP-NOW**: low-latency peer-to-peer between ESP32 props. Use the
+  framed binary format, and reserve the `FLAG_FLOOD_MESH` flag for
+  controlled multi-hop relaying (max TTL to be defined by the transport).
 
-New transports must carry the same JSON envelope; no binary custom
-protocol is planned for now.
+All transports carry the same logical envelope. Transports that cannot
+represent the full envelope must map losslessly to the canonical JSON
+form at the nearest bridge.
