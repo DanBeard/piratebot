@@ -1,0 +1,80 @@
+# =============================================================================
+# PirateBot Porch PC - Docker Compose
+# =============================================================================
+# Runs the prop mesh broker + PirateBot orchestrator on the temporary gaming PC.
+# All heavy models (VLM, TTS) run on the homelab cluster; this container only
+# handles detection orchestration, the prop mesh, and static display serving.
+#
+# Usage:
+#   docker compose -f docker/porch-compose.yaml up --build
+#
+# Assumptions:
+#   - This PC is on the same LAN as the homelab cluster (192.168.0.x).
+#   - cluster parrotts is reachable at http://192.168.0.14:18003 when scaled up.
+#   - The homelab Mosquitto broker is reachable at 192.168.0.2:1883.
+#   - USB camera and audio are forwarded into the orchestrator container.
+# =============================================================================
+
+services:
+  broker:
+    build:
+      context: ..
+      dockerfile: docker/broker/Dockerfile
+    image: piratebot/broker:latest
+    container_name: piratebot_broker
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - python
+      - -m
+      - props.broker.mesh_broker
+      - --host=0.0.0.0
+      - --ws-port=9001
+      - --http-port=9000
+      - --udp-port=9002
+      - --static-dir=/app/props/control_center/dist
+      - --garage-dir=/app/props/displays/garage_ship/dist
+      - --pumpkins-dir=/app/props/displays/pumpkins/dist
+      - --mqtt-url=mqtt://192.168.0.2:1883
+      - --session=halloween-2026
+      - --log-level=INFO
+    volumes:
+      - ../props/control_center/dist:/app/props/control_center/dist:ro
+      - ../props/displays/garage_ship/dist:/app/props/displays/garage_ship/dist:ro
+      - ../props/displays/pumpkins/dist:/app/props/displays/pumpkins/dist:ro
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: docker/orchestrator/Dockerfile
+    image: piratebot/orchestrator:latest
+    container_name: piratebot_orchestrator
+    network_mode: host
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      - PIRATEBOT_CONFIG=/app/config.porch.yaml
+      - HF_HOME=/cache/huggingface
+      - PARROTTS_URL=http://192.168.0.14:18003
+      - LITELLM_URL=http://192.168.0.14:4000/v1
+    volumes:
+      - ../config.porch.yaml:/app/config.porch.yaml:ro
+      - ../data:/app/data:ro
+      - ../voice_output:/app/voice_output
+      - piratebot-cache:/cache
+    devices:
+      - /dev/video0:/dev/video0
+    depends_on:
+      - broker
+    # Use entrypoint override to join the mesh instead of running the full show solo.
+    command:
+      - python
+      - -m
+      - main
+      - --config
+      - /app/config.porch.yaml
+
+volumes:
+  piratebot-cache:

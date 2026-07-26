@@ -19,6 +19,8 @@ from typing import Any, Optional
 import aiohttp
 from aiohttp import web
 
+from props.broker.mqtt_bridge import MqttBridge, TopicMapping
+from props.broker.z2m_bridge import Z2MBridge, Z2MDevice
 from props.lib.bus import MessageBus
 from props.lib.message import Message
 
@@ -52,6 +54,9 @@ class MeshBroker:
         self.display_dirs = display_dirs or {}
         self.mqtt_url = mqtt_url
         self.session = session
+
+        self.mqtt_bridge: Optional[MqttBridge] = None
+        self.z2m_bridge: Optional[Z2MBridge] = None
 
         self.bus = MessageBus()
         self._peers: dict[str, web.WebSocketResponse] = {}
@@ -98,10 +103,54 @@ class MeshBroker:
         self._tasks.append(asyncio.create_task(self._udp_discovery_loop()))
 
         if self.mqtt_url:
-            self._tasks.append(asyncio.create_task(self._mqtt_bridge_loop()))
+            await self._start_mqtt_bridges()
+
+    async def _start_mqtt_bridges(self) -> None:
+        """Start generic MQTT bridge and optional Z2M bridge."""
+        generic_mappings = [
+            TopicMapping(
+                mesh_topic="scene.estop",
+                mqtt_topic="piratebot/scene/estop",
+                direction="both",
+            ),
+            TopicMapping(
+                mesh_topic="scene.resume",
+                mqtt_topic="piratebot/scene/resume",
+                direction="both",
+            ),
+        ]
+        self.mqtt_bridge = MqttBridge(
+            bus=self.bus,
+            broker_url=self.mqtt_url,
+            mappings=generic_mappings,
+            source_id="mqtt_bridge",
+        )
+        await self.mqtt_bridge.start()
+        logger.info(f"MQTT bridge connected to {self.mqtt_url}")
+
+        # Opt-in Z2M devices. Edit or replace with a config file as hardware is known.
+        z2m_devices: list[Z2MDevice] = [
+            # Example:
+            # Z2MDevice(
+            #     friendly_name="porch_pir",
+            #     mesh_in_topic="sensors.porch.motion",
+            #     payload_field="occupancy",
+            # ),
+        ]
+        if z2m_devices:
+            self.z2m_bridge = Z2MBridge(
+                bus=self.bus,
+                mqtt_broker_url=self.mqtt_url,
+                devices=z2m_devices,
+            )
+            await self.z2m_bridge.start()
 
     async def stop(self) -> None:
         self._running = False
+        if self.mqtt_bridge:
+            await self.mqtt_bridge.stop()
+        if self.z2m_bridge:
+            await self.z2m_bridge.stop()
         for task in self._tasks:
             task.cancel()
             try:
@@ -244,8 +293,8 @@ class MeshBroker:
             return "127.0.0.1"
 
     async def _mqtt_bridge_loop(self) -> None:
-        """Placeholder for MQTT bridge."""
-        logger.warning("MQTT bridge not yet implemented")
+        """Deprecated placeholder; replaced by _start_mqtt_bridges."""
+        logger.warning("MQTT bridge loop placeholder is no longer used")
 
 
 class BrokerWithBus:
