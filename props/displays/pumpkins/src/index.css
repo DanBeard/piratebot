@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, sans-serif;
+}
+
+.pumpkin-stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at 50% 70%, #2a1505 0%, #000 80%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pumpkin {
+  width: 260px;
+  height: 200px;
+  background: radial-gradient(circle at 40% 30%, #ff9a00, #c44d00);
+  border-radius: 50%;
+  box-shadow: 0 0 60px rgba(255, 130, 0, 0.4);
+  position: relative;
+  animation: bob 3s ease-in-out infinite;
+}
+
+.pumpkin::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 30px;
+  height: 50px;
+  background: #4a6b2f;
+  border-radius: 50% 50% 0 0;
+  transform: translateX(-50%);
+}
+
+.face {
+  position: absolute;
+  inset: 20%;
+  filter: drop-shadow(0 0 10px #ffcc00);
+}
+
+.eye-left, .eye-right {
+  position: absolute;
+  top: 0;
+  width: 50px;
+  height: 50px;
+  background: #ffeb3b;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+.eye-left { left: 10%; }
+.eye-right { right: 10%; }
+
+.nose {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  background: #ffeb3b;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  transform: translateX(-50%);
+}
+
+.mouth {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  width: 120px;
+  height: 60px;
+  background: #ffeb3b;
+  clip-path: polygon(
+    0% 0%, 15% 100%, 25% 50%, 35% 100%, 50% 50%,
+    65% 100%, 75% 50%, 85% 100%, 100% 0%, 50% 20%
+  );
+  transform: translateX(-50%);
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.singing .mouth {
+  animation: sing 0.2s ease-in-out infinite alternate;
+}
+
+@keyframes sing {
+  from { transform: translateX(-50%) scaleY(1); }
+  to { transform: translateX(-50%) scaleY(0.6); }
+}
