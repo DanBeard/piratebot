@@ -1,0 +1,7 @@
+{
+  "name": "Preferences",
+  "version": "0.0.1",
+  "description": "Mock Preferences library for native unit tests",
+  "frameworks": "*",
+  "platforms": "*"
+}

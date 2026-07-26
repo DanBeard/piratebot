@@ -149,6 +149,28 @@ The framed format lets receivers detect the protocol without deep
 inspection. The `version` and `flags` bytes make future flood-mesh and
 binary-schema extensions easy to add without breaking older props.
 
+### Prop configuration
+
+| Topic | Direction | Payload |
+|-------|-----------|---------|
+| `prop.config.get` | handle | `{}` |
+| `prop.config.current` | emit | `{node_id, profile, wifi_ssid, broker_host, broker_ws_port, broker_mqtt_port, ota_enabled}` |
+| `prop.config.set` | handle | `{profile, wifi_ssid, wifi_pass, broker_host, broker_ws_port, broker_mqtt_port, ota_enabled}` |
+| `prop.config.ack` | emit | `{success, needs_reboot}` |
+
+### Prop OTA
+
+| Topic | Direction | Payload |
+|-------|-----------|---------|
+| `prop.ota.enable` | handle | `{enabled: bool, confirm: true}` |
+| `prop.ota.start` | handle | `{url: "http://.../firmware.bin"}` |
+| `prop.ota.status` | emit | `{enabled, error, success, bytes_written}` |
+
+`prop.ota.enable` requires `confirm: true` and only changes state; it does not
+flash. `prop.ota.start` only runs if OTA is enabled and the current scene is
+`idle`, `quiet`, or `estop`. This prevents accidental firmware updates during
+a live show.
+
 ## Discovery
 
 The broker answers UDP broadcast discovery requests on a configurable

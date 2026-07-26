@@ -10,6 +10,9 @@
 #include "transports/ws_client.h"
 #include "transports/mqtt_client.h"
 #include "transports/discovery.h"
+#include "config/config_manager.h"
+#include "config/config_handler.h"
+#include "ota/ota_manager.h"
 
 using namespace piratebot;
 
@@ -23,26 +26,66 @@ static SensorEngine sensor_engine([](const Message& msg) {
 static WebSocketClient ws_client;
 static MqttClient mqtt_client;
 static DiscoveryClient discovery;
-static Preferences prefs;
+static ConfigManager config_mgr;
+static ConfigHandler config_handler;
+static OtaManager ota_mgr;
+static char current_scene[32] = "idle";
 
 static uint32_t last_heartbeat_ms = 0;
 static uint32_t last_reconnect_ms = 0;
 static uint32_t seq = 0;
 
 static void on_mesh_message(const Message& msg) {
+    if (msg.target[0] != '\0' && strcmp(msg.target, MESH_NODE_ID) != 0) return;
+
     if (strcmp(msg.topic, "scene.estop") == 0) {
+        strlcpy(current_scene, "estop", sizeof(current_scene));
         effect_engine.stopAll();
         return;
     }
+    if (strcmp(msg.topic, "scene.resume") == 0) {
+        strlcpy(current_scene, "idle", sizeof(current_scene));
+        return;
+    }
+    if (strncmp(msg.topic, "scene.", 6) == 0) {
+        const char* new_scene = msg.payload["scene"] | "idle";
+        strlcpy(current_scene, new_scene, sizeof(current_scene));
+        return;
+    }
+
+    Message reply;
+    if (config_handler.handle(msg, reply)) {
+        ws_client.send(reply);
+        mqtt_client.send(reply);
+        if (config_handler.needsReboot()) {
+            delay(500);
+            ESP.restart();
+        }
+        return;
+    }
+
+    if (ota_mgr.handle(msg, reply, current_scene)) {
+        ws_client.send(reply);
+        mqtt_client.send(reply);
+        if (ota_mgr.needsReboot()) {
+            delay(500);
+            ESP.restart();
+        }
+        return;
+    }
+
     effect_engine.handleMessage(msg);
 }
 
 static void loadProfile() {
-    prefs.begin("piratebot", true);
-    char profile[32];
-    size_t len = prefs.getString("profile", profile, sizeof(profile));
-    prefs.end();
-    if (len == 0) {
+    PropConfig cfg;
+    config_mgr.begin();
+    config_mgr.load(cfg);
+    config_mgr.end();
+
+    char profile[64];
+    strlcpy(profile, cfg.profile, sizeof(profile));
+    if (profile[0] == '\0') {
         strncpy(profile, "cannon", sizeof(profile));
     }
 
@@ -60,11 +103,18 @@ static void loadProfile() {
         effect_engine.addProfile(&SMOKE_PROFILE);
         sensor_engine.addProfile(&PIR_PROFILE);
     }
+
+    ota_mgr.setEnabled(cfg.ota_enabled);
 }
 
 static void connectNetwork() {
+    PropConfig cfg;
+    config_mgr.begin();
+    config_mgr.load(cfg);
+    config_mgr.end();
+
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.begin(cfg.wifi_ssid, cfg.wifi_pass);
     Serial.print("Connecting to WiFi");
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED && attempts < 40) {
@@ -80,8 +130,14 @@ static void connectNetwork() {
 }
 
 static void discoverBroker() {
-    char broker_host[64] = BROKER_HOST;
-    uint16_t broker_port = BROKER_WS_PORT;
+    PropConfig cfg;
+    config_mgr.begin();
+    config_mgr.load(cfg);
+    config_mgr.end();
+
+    char broker_host[64];
+    strlcpy(broker_host, cfg.broker_host[0] != '\0' ? cfg.broker_host : BROKER_HOST, sizeof(broker_host));
+    uint16_t broker_port = cfg.broker_ws_port ? cfg.broker_ws_port : BROKER_WS_PORT;
 
     if (broker_host[0] == '\0') {
         Serial.println("Discovering broker via UDP multicast...");
@@ -108,10 +164,13 @@ static void announce() {
     char* caps[8];
     uint8_t cap_count = 0;
     effect_engine.getCapabilities(caps, cap_count, 8);
-    JsonArray arr = msg.payload["capabilities"].to<JsonArray>();
+    JsonArray arr = msg.payload.createNestedArray("capabilities");
     for (uint8_t i = 0; i < cap_count; ++i) arr.add(caps[i]);
+    arr.add("prop.config.get");
+    arr.add("prop.config.set");
+    arr.add("prop.ota.enable");
 
-    JsonArray codecs = msg.payload["codecs"].to<JsonArray>();
+    JsonArray codecs = msg.payload.createNestedArray("codecs");
     codecs.add("json");
     codecs.add("cbor");  // advertised even if not yet implemented
 
