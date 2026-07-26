@@ -1,0 +1,206 @@
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        #gamecanvas {
+            border: 0; margin:0; padding:0;background: transparent;
+        }
+        /*.canvas-container {*/
+        /*  width:100% !important;*/
+        /*  display: flex; align-content: center; align-items: center*/
+        /*}*/
+
+    </style>
+    <!-- Fabric makes canvas easier -->
+    <script src="js/fabric.min.js"></script>
+    <!-- sounds -->
+    <audio id="sndcannon" src="sounds/nri-cannon.mp3" hidden preload="auto"></audio>
+    <audio id="sndsplash" src="sounds/splash.mp3" hidden preload="auto"></audio>
+</head>
+
+<body style="border: 0; margin:0; padding:0; width:100%; height:100%; background: black; overflow: hidden">
+<video height="1080" width="1920" id="video1" style="position: absolute; left: 0; top:0 " loop autoplay muted
+       src="video/ambiance_short2.mp4" >
+</video>
+<canvas id="gamecanvas" width="1920" height="1080" >
+
+</canvas>
+
+
+<div style="display:none;">
+</div>
+
+<script>
+    const DEFAULT_VIDEO_URI = "video/ambiance_short2.mp4";
+    function change_video (vid_uri) {
+        const ele = document.getElementById("video1");
+        ele.setAttribute("src", vid_uri || DEFAULT_VIDEO_URI);
+        ele.load();
+        ele.play();
+    }
+</script>
+
+<script>
+    const URI = "ws://localhost:31337"
+    const throttleDrawEvery=1;
+    let frame = 0;
+
+    const canvasWidth = 1920;
+    const canvasHeight = 1080;
+
+    let canvas = this.__canvas = new fabric.Canvas('gamecanvas', {
+        selection: false,
+        selectable:false
+    });
+
+    const ws = new WebSocket(URI);
+    ws.addEventListener("open", ()=>{
+        // add ourselves to manifest
+        ws.send(JSON.stringify({
+            type : "SA",
+            address: "AMBIANCE"
+        }));
+        //subscribe to our events
+        ws.send(JSON.stringify({
+            type : "S",
+            address:"AMBIANCE"
+        }));
+        // subscribe to cannon events as well
+        ws.send(JSON.stringify({
+            type : "S",
+            address:"CANNON"
+        }));
+        // subscribe to PUMPKINS events as well
+        ws.send(JSON.stringify({
+            type : "S",
+            address:"PUMPKINS"
+        }));
+    })
+
+    let  video1El = document.getElementById('video1');
+    function init() {
+        video1El.play();
+
+
+        // cannon ball visual
+       let cannonBall = null;
+
+        fabric.Image.fromURL("images/plain_cannonball.png", (img)=>{
+            cannonBall = img;
+            cannonBall.set({top:0, left:0, selectable: false, scaleX:0.3, scaleY:0.3});
+            //cannonBall.scale(0.25);
+            canvas.add(cannonBall);
+            //fire();
+            setTimeout(()=>cannonBall.set("opacity", 0), 500);
+        });
+
+        const fire = () => {
+            const fullScale = 0.7
+            cannonBall.set({top: canvasHeight+50, left: 0, scaleX:fullScale, scaleY:fullScale, opacity:1});
+            const transTime = 2500;
+            let interval =0;
+
+            let calcBezier = (interpolatedTime, p0,  p1, p2) => {
+                return Math.round((Math.pow((1 - interpolatedTime), 2) * p0)
+                    + (2 * (1 - interpolatedTime) * interpolatedTime * p1)
+                    + (Math.pow(interpolatedTime, 2) * p2));
+            }
+
+            document.getElementById("sndcannon").play();
+            let ix = setInterval(()=>{
+                let prog =  interval*8/transTime;
+                // speed up at begging of cannonball
+                prog = 1 - Math.pow(1 - prog, 7);
+                const top = calcBezier(prog, canvasHeight+50 , -600, 650);
+                const left = calcBezier(prog, -50 , 1400, 1450);
+                const scale = fullScale * (1-prog) + 0.005
+                cannonBall.set({top, left, scaleX: scale, scaleY: scale});
+                interval++;
+                if(prog > .999)  {
+                    clearInterval(ix);
+                    cannonBall.set("opacity", 0);
+                    document.getElementById("sndsplash").play();
+                }
+            }, 8)
+            // cannonBall.animate("top", 300, {duration:transTime/2 });
+            // cannonBall.animate("left", 500, {duration:transTime/2 });
+            // setTimeout(()=>{
+            //         cannonBall.animate("top", 700, {duration:transTime/2 ,});
+            //         cannonBall.animate("left", 1600, { duration:transTime/2, });
+            // }, transTime/2-16);
+
+            //cannonBall.animate("scaleX", 0.005, {duration:transTime, easing: fabric.util.ease.easeOutExpo});
+            //cannonBall.animate("scaleY", 0.005, {duration:transTime, easing: fabric.util.ease.easeOutExpo});
+        }
+
+
+        //setInterval(fire, 7000)
+
+        // WS msg routing
+        ws.addEventListener("message", (rawMsg)=>{
+            console.log(rawMsg)
+            let msg = JSON.parse(rawMsg.data);
+            switch (msg.address) {
+                case "AMBIANCE":
+                    // do we have any commands?
+                    break;
+                case "CANNON":
+                    // Cannon Shot here
+                    if(msg.type === 'N' && msg.data.prop === "firing" && !!msg.data.val) {
+                        fire();
+                    }
+                    break;
+                case "PUMPKINS":
+                    if(msg.data.prop === "song") {
+                        const video_uri = "video/music_video/"+msg.data.val;
+                        let delay=500;
+                        if(msg.data.val === "joli_rouge.mp4") delay = 1420; // more delay for joli rouge. Special
+                        setTimeout(() => change_video(video_uri), delay); // small delay because vlc takes a sec to load
+                    } else if(msg.type === 'N' && msg.data.prop === "singing" && !msg.data.val) {
+                        //setTimeout(()=> change_video(DEFAULT_VIDEO_URI+"#t="+ Math.round(Math.random() * (100))), 250);
+                        // dirty hack but I dunno what else to do
+                        location.reload();
+                    }
+                }
+        });
+
+    }
+
+
+    setTimeout(()=>{
+        //update();
+        init();
+        draw();
+    }, 100);
+
+    function draw() {
+        window.requestAnimationFrame(draw);
+        if(frame++ > throttleDrawEvery) {
+            frame=0;
+            canvas.renderAll();
+        }
+    }
+</script>
+
+
+<script>
+    console.log(".=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-.\n" +
+        "|                     ______                     |\n" +
+        "|                  .-\"      \"-.                  |\n" +
+        "|                 /            \\                 |\n" +
+        "|     _          |              |          _     |\n" +
+        "|    ( \\         |,  .-.  .-.  ,|         / )    |\n" +
+        "|     > \"=._     | )(__/  \\__)( |     _.=\" <     |\n" +
+        "|    (_/\"=._\"=._ |/     /\\     \\| _.=\"_.=\"\\_)    |\n" +
+        "|           \"=._\"(_     ^^     _)\"_.=\"           |\n" +
+        "|               \"=\\__|IIIIII|__/=\"               |\n" +
+        "|              _.=\"| \\IIIIII/ |\"=._              |\n" +
+        "|    _     _.=\"_.=\"\\          /\"=._\"=._     _    |\n" +
+        "|   ( \\_.=\"_.=\"     `--------`     \"=._\"=._/ )   |\n" +
+        "|    > _.=\"                            \"=._ <    |\n" +
+        "|   (_/                                    \\_)   |\n" +
+        "|                                                |\n" +
+        "'-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-='");
+</script>
+</body>
+</html>

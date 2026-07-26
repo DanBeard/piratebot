@@ -1,0 +1,201 @@
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        #gamecanvas {
+            border:10px solid black; margin:auto;background: #87ceeb;
+        }
+        /*.canvas-container {*/
+        /*  width:100% !important;*/
+        /*  display: flex; align-content: center; align-items: center*/
+        /*}*/
+
+    </style>
+    <!-- Fabric makes canvas easier -->
+    <script src="js/fabric.min.js"></script>
+    <!-- crewmates -->
+    <script src="js/quartermaster.js"></script>
+    <script src="js/pirateShip.js"></script>
+    <script src="js/cannon.js"></script>
+
+</head>
+
+<body style="margin:0; padding:0; width:100%; height:100%; background: black">
+<canvas id="gamecanvas" width="1600" height="900" >
+
+</canvas>
+
+<div style="display:none;">
+</div>
+
+<script>
+    const URI = "ws://"+ location.hostname +":31337"
+    const throttleDrawEvery=4;
+    let frame = 0;
+
+    const canvasWidth = 1600;
+    const canvasHeight = 900;
+
+    const sounds = {
+        intro: document.getElementById("sndintro"),
+        pub: document.getElementById("sndpub"),
+    }
+
+    let canvas = this.__canvas = new fabric.Canvas('gamecanvas', {
+        selection: false,
+        selectable:false
+    });
+
+    let latestManifest = [];
+
+    /******************
+     *  Image preload
+     ******************/
+    const images = {
+        house: null,
+        ship:null,
+        title:null
+    }
+    const imagesPreload = [
+        new Promise((res, rej)=>{
+            fabric.Image.fromURL("images/QUARTERMASTER.png", (img)=>{
+                img.set({top:50, left:500 });
+                img.scale(1);
+                images.title = img;
+                res();
+            });
+        }),
+        new Promise((res, rej)=>{
+            fabric.Image.fromURL("images/house.png", (img)=>{
+                img.set({top:0, left:0, width: canvasWidth, height: canvasHeight, selectable: false});
+                img.scale(2.4);
+                images.house = img;
+                res();
+            });
+        }),
+        new Promise((res, rej)=>{
+            fabric.Image.fromURL("images/ship_sprite.png", (img)=>{
+                images.ship = img;
+                res();
+            });
+        }),
+        ]
+
+    const ws = new WebSocket(URI);
+    ws.addEventListener("open", ()=>{
+        // add ourselves to manifest
+        ws.send(JSON.stringify({
+            type : "SA",
+            address: "CAPTAIN_UI"
+        }));
+        //subscribe to ALL events so we hear everything
+        ws.send(JSON.stringify({
+            type : "S",
+            address:"*"
+        }));
+    })
+
+    function init() {
+        let bgRect = new fabric.Rect({
+            originX: 'left',
+            originY: 'top',
+            width: canvasWidth,
+            height: canvasHeight,
+            fill: '#f8f9fa',
+            selectable: false
+        });
+        canvas.add(bgRect);
+        canvas.add(images.house);
+        canvas.add(images.title);
+
+        const quartermaster = Quartermaster(canvas, ws);
+        const pirateShip = PirateShip(canvas, ws, images.ship);
+        const cannon = Cannon(canvas, ws);
+
+        const handleManifest = (manifest) => {
+            // Log it
+            if(manifest !== latestManifest)  console.log("NEW MANIFEST " + JSON.stringify(manifest));
+            // Set the enabled flags with what's connected
+            quartermaster.setEnabled(manifest.indexOf("QUARTERMASTER")!==-1);
+            pirateShip.setEnabled(manifest.indexOf("AMBIANCE")!==-1);
+            cannon.setEnabled(manifest.indexOf("CANNON")!==-1);
+
+            // request a prop update from everything that wasn't in our last manifest (i.e. new crewmates)
+            let newCrewmates = manifest.filter(x => !latestManifest.includes(x));
+            for(let m of newCrewmates) {
+                ws.send(JSON.stringify({
+                    type:"C",
+                    address:m,
+                    data:{"c": "~P~"} // trying to keep common commands small byte-sizes
+                }));
+            }
+
+            latestManifest = manifest;
+        }
+        // set a timer to ensure all UI elements are up to date with the latst manifest
+        setInterval(()=> handleManifest(latestManifest), 2000);
+
+        // WS msg routing
+        ws.addEventListener("message", (rawMsg)=>{
+            console.log(rawMsg)
+            let msg = JSON.parse(rawMsg.data);
+            switch (msg.address) {
+                case "CAPTAIN_UI":
+                case "*":
+                    if(msg.type === "M") handleManifest(msg.data);
+                    break;
+
+                case "QUARTERMASTER":
+                    quartermaster.onMsg(msg);
+                    break;
+
+                case "AMBIANCE":
+                    pirateShip.onMsg(msg);
+                    break;
+
+                case "CANNON":
+                    cannon.onMsg(msg);
+                    break;
+                }
+        });
+
+        // Manifest handling for connected crewmates
+        setTimeout(()=> ws.send(JSON.stringify({type:"GM"})), 100); // GET MANIFEST TYPE,
+
+    }
+
+    Promise.all(imagesPreload).then(()=>{
+        //update();
+        init();
+        draw();
+    });
+
+    function draw() {
+        window.requestAnimationFrame(draw);
+        if(frame++ > throttleDrawEvery) {
+            frame=0;
+            canvas.renderAll();
+        }
+    }
+</script>
+<script>
+    console.log(".=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-.\n" +
+        "|                     ______                     |\n" +
+        "|                  .-\"      \"-.                  |\n" +
+        "|                 /            \\                 |\n" +
+        "|     _          |              |          _     |\n" +
+        "|    ( \\         |,  .-.  .-.  ,|         / )    |\n" +
+        "|     > \"=._     | )(__/  \\__)( |     _.=\" <     |\n" +
+        "|    (_/\"=._\"=._ |/     /\\     \\| _.=\"_.=\"\\_)    |\n" +
+        "|           \"=._\"(_     ^^     _)\"_.=\"           |\n" +
+        "|               \"=\\__|IIIIII|__/=\"               |\n" +
+        "|              _.=\"| \\IIIIII/ |\"=._              |\n" +
+        "|    _     _.=\"_.=\"\\          /\"=._\"=._     _    |\n" +
+        "|   ( \\_.=\"_.=\"     `--------`     \"=._\"=._/ )   |\n" +
+        "|    > _.=\"                            \"=._ <    |\n" +
+        "|   (_/                                    \\_)   |\n" +
+        "|                                                |\n" +
+        "'-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-='");
+</script>
+</body>
+</html>

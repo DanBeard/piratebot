@@ -1,0 +1,203 @@
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        .btn {
+            height: 350px;
+            width:95%;
+            margin: auto;
+            border:1px solid white;
+            color: white;
+            line-height: 350px;
+            font-size: 80px;
+            text-align: center;
+            font-weight: bolder;
+        }
+
+        .active {
+            color: blue;
+        }
+
+        .disconnected {
+            color: red;
+            border: 1px solid red;
+        }
+
+        .error {
+            color: yellow;
+            border: 1px solid yellow;
+        }
+
+    </style>
+
+
+</head>
+
+<body style="margin:0; padding:0; width:100%; height:100%; background: black">
+
+<div style="flex-direction: column; display: flex">
+    <div id="firebtn" class="btn disconnected">
+        FIRE
+    </div>
+    <div id="singbtn" class="btn disconnected">
+        SING
+    </div>
+</div>
+
+<script>
+
+let ws = null;
+
+function onload() {
+    const URI = "ws://"+ location.hostname +":31337"
+
+    let latestManifest = [];
+
+    const firebtn = document.getElementById("firebtn");
+    const singbtn = document.getElementById("singbtn");
+
+    ws = new WebSocket(URI);
+    ws.addEventListener("open", ()=>{
+        // add ourselves to manifest
+        ws.send(JSON.stringify({
+            type : "SA",
+            address: "MOBILE_UI"
+        }));
+        //subscribe to ALL events so we hear everything
+        ws.send(JSON.stringify({
+            type : "S",
+            address:"*"
+        }));
+
+        firebtn.classList.remove("error");
+        singbtn.classList.remove("error");
+    })
+
+    ws.addEventListener("message", (rawMsg)=>{
+        console.log(rawMsg)
+        let msg = JSON.parse(rawMsg.data);
+        switch (msg.address) {
+            case "MOBILE_UI":
+            case "*":
+                if(msg.type === "M") handleManifest(msg.data);
+                break;
+
+            // case "QUARTERMASTER":
+            //     quartermaster.onMsg(msg);
+            //     break;
+            //
+            // case "AMBIANCE":
+            //     pirateShip.onMsg(msg);
+            //     break;
+            //
+            case "CANNON":
+                 if(msg.type === 'N' && msg.data.prop === "firing") {
+                     const firing = !!msg.data.val;
+                     if(firing) {
+                         firebtn.classList.add("active");
+                     } else {
+                         firebtn.classList.remove("active");
+                     }
+                 }
+                break;
+            case "PUMPKINS":
+                if(msg.type === 'N' && msg.data.prop === "singing") {
+                    const singing = !!msg.data.val;
+                    if(singing) {
+                        singbtn.classList.add("active");
+                    } else {
+                        singbtn.classList.remove("active");
+                    }
+                }
+                break;
+        }
+    });
+
+
+    const handleManifest = (manifest) => {
+        // Log it
+        if(manifest !== latestManifest)  console.log("NEW MANIFEST " + JSON.stringify(manifest));
+
+        // request a prop update from everything that wasn't in our last manifest (i.e. new crewmates)
+        let newCrewmates = manifest.filter(x => !latestManifest.includes(x));
+        for(let m of newCrewmates) {
+            ws.send(JSON.stringify({
+                type:"C",
+                address:m,
+                data:{"c": "~P~"} // trying to keep common commands small byte-sizes
+            }));
+        }
+
+        // color buttons so we know if it's connected
+        if(manifest.indexOf("CANNON") === -1)
+            firebtn.classList.add("disconnected");
+        else if(manifest.indexOf("CANNON") !== -1)
+            firebtn.classList.remove("disconnected");
+
+        if( manifest.indexOf("PUMPKINS") === -1)
+            singbtn.classList.add("disconnected");
+        else if(manifest.indexOf("PUMPKINS") !== -1)
+            singbtn.classList.remove("disconnected");
+
+        latestManifest = manifest;
+    }
+    // set a timer to ensure all UI elements are up to date with the latest manifest
+    const manifestInterval = setInterval(()=> handleManifest(latestManifest), 2000);
+    // Manifest handling for connected crewmates
+    setTimeout(()=> ws.send(JSON.stringify({type:"GM"})), 100); // GET MANIFEST TYPE,
+
+
+    firebtn.onclick = ()=> {
+        ws.send(JSON.stringify({
+            type : "C",
+            address: "CANNON",
+            data:{command:"FIRE"}
+        }));
+    }
+
+    singbtn.onclick = ()=> {
+        ws.send(JSON.stringify({
+            type : "C",
+            address: "PUMPKINS",
+            data:{command:"SING"}
+        }));
+    }
+
+    ws.onclose = () =>{
+        firebtn.classList.add("error");
+        singbtn.classList.add("error");
+        clearInterval(manifestInterval);
+    }
+}
+
+    onload();
+    setInterval(()=>{
+        // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/readyState
+        if(!ws || (ws && ws.readyState === 3)) {
+            console.log("reconnecting...");
+            onload();
+        }
+    }, 3000);
+
+</script>
+<script>
+    console.log(".=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-.\n" +
+        "|                     ______                     |\n" +
+        "|                  .-\"      \"-.                  |\n" +
+        "|                 /            \\                 |\n" +
+        "|     _          |              |          _     |\n" +
+        "|    ( \\         |,  .-.  .-.  ,|         / )    |\n" +
+        "|     > \"=._     | )(__/  \\__)( |     _.=\" <     |\n" +
+        "|    (_/\"=._\"=._ |/     /\\     \\| _.=\"_.=\"\\_)    |\n" +
+        "|           \"=._\"(_     ^^     _)\"_.=\"           |\n" +
+        "|               \"=\\__|IIIIII|__/=\"               |\n" +
+        "|              _.=\"| \\IIIIII/ |\"=._              |\n" +
+        "|    _     _.=\"_.=\"\\          /\"=._\"=._     _    |\n" +
+        "|   ( \\_.=\"_.=\"     `--------`     \"=._\"=._/ )   |\n" +
+        "|    > _.=\"                            \"=._ <    |\n" +
+        "|   (_/                                    \\_)   |\n" +
+        "|                                                |\n" +
+        "'-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-='");
+</script>
+</body>
+</html>
