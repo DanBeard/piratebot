@@ -1,15 +1,18 @@
 # PirateBot Voice Lines Database
 # Pre-written lines for Captain Barnacle Bill
 #
+# Voice style: theatrical, Barbossa-esque — formal pirate diction,
+# rolling Rs in natural speech, no standalone "Arrr" (TTS can't do it).
+# Inspired by Barbossa, Jack Sparrow, Long John Silver, Davy Jones.
+#
 # Structure:
 #   voice_lines:
 #     category:
 #       subcategory:
-#         - text (simple form)
 #         - id: custom_id
 #           text: "Line text"
 #           tags: [tag1, tag2]
-#           emotion: happy|surprised|impressed|amused|neutral
+#           emotion: happy|surprised|impressed|amused|neutral|curious|menacing|dramatic
 
 voice_lines:
   greetings:
@@ -20,7 +23,7 @@ voice_lines:
         emotion: happy
 
       - id: greet_002
-        text: "Arrr, who goes there? A brave soul approaches!"
+        text: "Well now, who goes there? A brave soul approaches!"
         tags: [challenge]
         emotion: curious
 
@@ -39,9 +42,34 @@ voice_lines:
         tags: [curious]
         emotion: amused
 
+      - id: greet_006
+        text: "Step forward, if ye dare! Captain Barnacle Bill demands an audience!"
+        tags: [challenge, dramatic]
+        emotion: dramatic
+
+      - id: greet_007
+        text: "I've been expectin' company. The sea brings all manner of souls to me door."
+        tags: [welcome, mysterious]
+        emotion: neutral
+
+      - id: greet_008
+        text: "Welcome, welcome! Don't be shy now, I don't bite. Me parrot, on the other hand..."
+        tags: [welcome, humor]
+        emotion: amused
+
+      - id: greet_009
+        text: "By the powers, another brave one! Come closer, let me get a look at ye!"
+        tags: [welcome]
+        emotion: impressed
+
+      - id: greet_010
+        text: "The night grows dark and full of terrors, and yet here ye stand! I admire that."
+        tags: [welcome, dramatic]
+        emotion: impressed
+
     group:
       - id: greet_group_001
-        text: "Arrr! A whole crew of scallywags approaches! Welcome, me hearties!"
+        text: "By the powers! A whole crew of scallywags approaches! Welcome, me hearties!"
         tags: [group, welcome]
         emotion: happy
 
@@ -50,11 +78,42 @@ voice_lines:
         tags: [group]
         emotion: impressed
 
+      - id: greet_group_003
+        text: "A full crew! I could man me ship with a company like this!"
+        tags: [group, nautical]
+        emotion: happy
+
+      - id: greet_group_004
+        text: "Well now, there's strength in numbers! A wise strategy for Halloween night!"
+        tags: [group]
+        emotion: amused
+
     returning:
       - id: greet_return_001
-        text: "Arrr, back fer more treasure, are ye? I admire yer spirit!"
+        text: "Well well, back fer more treasure, are ye? I admire yer spirit!"
         tags: [returning]
         emotion: amused
+
+      - id: greet_return_002
+        text: "I know that face! Ye've sailed these waters before, haven't ye?"
+        tags: [returning]
+        emotion: curious
+
+      - id: greet_return_003
+        text: "Back again! Ye must have a taste fer danger. Or perhaps just fer candy."
+        tags: [returning]
+        emotion: amused
+
+    late_night:
+      - id: greet_late_001
+        text: "Still out at this hour? Ye've got the makings of a proper pirate!"
+        tags: [late]
+        emotion: impressed
+
+      - id: greet_late_002
+        text: "The witching hour draws near and still ye roam! Bold, very bold!"
+        tags: [late, dramatic]
+        emotion: impressed
 
   costume_reactions:
     scary:
@@ -64,7 +123,7 @@ voice_lines:
         emotion: surprised
 
       - id: costume_scary_002
-        text: "Arrr, a zombie! Ye'd fit right in with me undead crew!"
+        text: "Blast me! A zombie! Ye'd fit right in with me undead crew!"
         tags: [zombie]
         emotion: impressed
 
@@ -74,7 +133,7 @@ voice_lines:
         emotion: amused
 
       - id: costume_scary_004
-        text: "A skeleton, arr! Ye look like the last mate who crossed me!"
+        text: "A skeleton! Ye look like the last mate who crossed me!"
         tags: [skeleton]
         emotion: amused
 
@@ -83,6 +142,31 @@ voice_lines:
         tags: [werewolf, monster]
         emotion: surprised
 
+      - id: costume_scary_006
+        text: "A demon, is it? I've made bargains with worse, I assure ye."
+        tags: [demon, devil]
+        emotion: menacing
+
+      - id: costume_scary_007
+        text: "By thunder! Is that the Grim Reaper himself? I'm not ready to meet ye just yet!"
+        tags: [reaper, death, skeleton]
+        emotion: surprised
+
+      - id: costume_scary_008
+        text: "A creature of the night! The darkness suits ye well, I must say."
+        tags: [dark, monster, vampire]
+        emotion: impressed
+
+      - id: costume_scary_009
+        text: "Ye look like somethin' that crawled out of Davy Jones's locker! And I mean that as a compliment!"
+        tags: [monster, scary]
+        emotion: impressed
+
+      - id: costume_scary_010
+        text: "Now there's a face that would send me whole crew runnin' below decks!"
+        tags: [scary, monster]
+        emotion: amused
+
     heroic:
       - id: costume_hero_001
         text: "A superhero! Even us pirates need a hero now and then!"
@@ -90,13 +174,28 @@ voice_lines:
         emotion: impressed
 
       - id: costume_hero_002
-        text: "Arrr, is that a mighty warrior I see? Ready fer battle, are ye?"
+        text: "Now then, is that a mighty warrior I see? Ready fer battle, are ye?"
         tags: [warrior, knight]
         emotion: impressed
 
       - id: costume_hero_003
         text: "A ninja! Silent and deadly, just like the sea at night!"
         tags: [ninja]
+        emotion: impressed
+
+      - id: costume_hero_004
+        text: "A knight in shinin' armor! Tell me, have ye come to slay the dragon or join me crew?"
+        tags: [knight, medieval]
+        emotion: amused
+
+      - id: costume_hero_005
+        text: "With powers like that, ye could rule the seven seas! But I called it first."
+        tags: [superhero, hero]
+        emotion: amused
+
+      - id: costume_hero_006
+        text: "A mighty warrior stands before me! I'd rather have ye on me side than against me, that's certain."
+        tags: [warrior, hero]
         emotion: impressed
 
     magical:
@@ -115,15 +214,35 @@ voice_lines:
         tags: [fairy]
         emotion: amused
 
+      - id: costume_magic_004
+        text: "Sorcery! I've seen curses that would make yer spells look like parlor tricks!"
+        tags: [wizard, witch, magic]
+        emotion: menacing
+
+      - id: costume_magic_005
+        text: "An enchantress! The last one I met turned me crew into pigs. Improved some of 'em, actually."
+        tags: [witch, magic]
+        emotion: amused
+
     princess:
       - id: costume_princess_001
-        text: "Arrr, royalty! Don't worry, I only kidnap princesses on Tuesdays!"
+        text: "Royalty! Don't worry, I only kidnap princesses on Tuesdays!"
         tags: [princess, royalty]
         emotion: amused
 
       - id: costume_princess_002
         text: "A princess! Should I bow or would ye prefer I salute?"
         tags: [princess]
+        emotion: amused
+
+      - id: costume_princess_003
+        text: "Your Highness! Forgive me humble quarters. I'm between castles at the moment."
+        tags: [princess, royalty, queen, king]
+        emotion: amused
+
+      - id: costume_princess_004
+        text: "A queen! I'd curtsy, but I've got a wooden leg and me balance isn't what it used to be."
+        tags: [queen, royalty, princess]
         emotion: amused
 
     animal:
@@ -142,9 +261,39 @@ voice_lines:
         tags: [shark, fish]
         emotion: happy
 
+      - id: costume_animal_004
+        text: "Is that a parrot? I've been lookin' fer a new one! Me last one had a terrible vocabulary."
+        tags: [parrot, bird]
+        emotion: happy
+
+      - id: costume_animal_005
+        text: "A spider! I've had enough of yer kind in me ship's hold, thank ye very much!"
+        tags: [spider, bug, insect]
+        emotion: amused
+
+      - id: costume_animal_006
+        text: "A lion! King of the jungle, meet the king of the seas!"
+        tags: [lion, animal]
+        emotion: impressed
+
+      - id: costume_animal_007
+        text: "A dragon! I once saw one off the coast of Borneo. Or maybe it was just the rum."
+        tags: [dragon]
+        emotion: amused
+
+      - id: costume_animal_008
+        text: "Well blow me down, a unicorn! I thought yer kind only existed in sailors' tales!"
+        tags: [unicorn, horse]
+        emotion: surprised
+
+      - id: costume_animal_009
+        text: "A bat! Ye'd be right at home in me ship's rigging after dark!"
+        tags: [bat]
+        emotion: amused
+
     movie_tv:
       - id: costume_movie_001
-        text: "Arrr, I recognize ye from the picture shows! A fine character!"
+        text: "I know yer face! From the picture shows! A fine character!"
         tags: [movie, tv, character]
         emotion: impressed
 
@@ -152,6 +301,21 @@ voice_lines:
         text: "A fellow pirate from the movies! Welcome to the REAL crew!"
         tags: [pirate, movie]
         emotion: happy
+
+      - id: costume_movie_003
+        text: "From a galaxy far, far away, are ye? Well, ye've landed on a pirate's doorstep now!"
+        tags: [star_wars, sci_fi, movie]
+        emotion: amused
+
+      - id: costume_movie_004
+        text: "Now I recognize ye! A famous face on the high seas of entertainment!"
+        tags: [movie, tv, celebrity]
+        emotion: impressed
+
+      - id: costume_movie_005
+        text: "A villain from the stories! We villains must stick together, wouldn't ye say?"
+        tags: [villain, movie]
+        emotion: amused
 
     spooky_classic:
       - id: costume_spooky_001
@@ -164,6 +328,21 @@ voice_lines:
         tags: [frankenstein, monster]
         emotion: impressed
 
+      - id: costume_spooky_003
+        text: "Count Dracula himself! I'd offer ye a drink, but I suspect ye've already had one!"
+        tags: [dracula, vampire]
+        emotion: amused
+
+      - id: costume_spooky_004
+        text: "A headless horseman! Now how do ye eat yer candy without a head? That's a real puzzle!"
+        tags: [headless_horseman]
+        emotion: amused
+
+      - id: costume_spooky_005
+        text: "The creature from the deep! I've been wantin' to have words with ye about scarin' me fish away!"
+        tags: [creature, swamp, sea_monster]
+        emotion: amused
+
     professional:
       - id: costume_pro_001
         text: "A doctor! Perfect, me peg leg's been actin' up lately!"
@@ -175,6 +354,236 @@ voice_lines:
         tags: [astronaut, space]
         emotion: impressed
 
+      - id: costume_pro_003
+        text: "A firefighter! Could've used ye last time me ship caught fire. Long story."
+        tags: [firefighter]
+        emotion: amused
+
+      - id: costume_pro_004
+        text: "The law! I'll have ye know I'm a perfectly legitimate businessman! Mostly!"
+        tags: [police, cop, officer]
+        emotion: amused
+
+      - id: costume_pro_005
+        text: "A scientist! Perhaps ye can explain how me compass points to treasure instead of north!"
+        tags: [scientist, nerd]
+        emotion: curious
+
+      - id: costume_pro_006
+        text: "A chef! At last! I've been eatin' hardtack and salt beef fer three hundred years!"
+        tags: [chef, cook, food]
+        emotion: happy
+
+    scifi:
+      - id: costume_scifi_001
+        text: "A robot! Tell me, do ye rust in saltwater? Askin' fer professional reasons."
+        tags: [robot, android]
+        emotion: curious
+
+      - id: costume_scifi_002
+        text: "An alien! I've sailed to the edge of every map, but I never expected visitors from the stars!"
+        tags: [alien, space]
+        emotion: surprised
+
+      - id: costume_scifi_003
+        text: "From the future, are ye? Tell me, do pirates still rule the seas in yer time?"
+        tags: [time_traveler, future, sci_fi]
+        emotion: curious
+
+    funny:
+      - id: costume_funny_001
+        text: "Is that a banana? That's the most terrifying thing I've seen all night. And I've seen sea serpents."
+        tags: [banana, food, funny]
+        emotion: amused
+
+      - id: costume_funny_002
+        text: "A clown! The only thing scarier than a pirate, if ye ask me!"
+        tags: [clown]
+        emotion: amused
+
+      - id: costume_funny_003
+        text: "Now that's a costume I've never seen in all me years! And I've seen plenty, believe me!"
+        tags: [unique, creative, funny]
+        emotion: impressed
+
+      - id: costume_funny_004
+        text: "A hot dog! In all me years at sea, I never thought I'd be threatened by a sausage!"
+        tags: [hot_dog, food, funny]
+        emotion: amused
+
+    sports:
+      - id: costume_sport_001
+        text: "An athlete! I could use someone with yer stamina for scrubbin' the deck!"
+        tags: [athlete, sports]
+        emotion: amused
+
+      - id: costume_sport_002
+        text: "A boxer! I'd challenge ye to a round, but I fight dirty. Pirate's privilege."
+        tags: [boxer, fighter, wrestling]
+        emotion: amused
+
+    fantasy:
+      - id: costume_fantasy_001
+        text: "An elf! Pointy ears, just like the merfolk I've seen beneath the waves!"
+        tags: [elf, fantasy]
+        emotion: impressed
+
+      - id: costume_fantasy_002
+        text: "A dwarf! Mighty miners and fine warriors! I'd trade me gold fer yer craftsmanship any day!"
+        tags: [dwarf, fantasy]
+        emotion: impressed
+
+      - id: costume_fantasy_003
+        text: "A creature of legend! The kind of thing ye only see on the strangest voyages!"
+        tags: [fantasy, mythical]
+        emotion: impressed
+
+    color:
+      - id: costume_color_red_001
+        text: "Red as a pirate's sunset! That color suits ye well, me hearty!"
+        tags: [red, color]
+        emotion: impressed
+
+      - id: costume_color_red_002
+        text: "A crimson costume! The color of blood and battle! Ye've got a warrior's taste!"
+        tags: [red, crimson, color]
+        emotion: impressed
+
+      - id: costume_color_red_003
+        text: "Red from head to toe! Ye look like a walkin' warning flag, and I mean that as a compliment!"
+        tags: [red, color]
+        emotion: amused
+
+      - id: costume_color_orange_001
+        text: "Orange as a sunset over the Caribbean! That's the color of adventure, that is!"
+        tags: [orange, color]
+        emotion: happy
+
+      - id: costume_color_orange_002
+        text: "Now there's a proper Halloween color! Orange like a jack-o'-lantern on a dark night!"
+        tags: [orange, color, halloween]
+        emotion: happy
+
+      - id: costume_color_orange_003
+        text: "That orange glow! Like the lanterns on me ship guidin' me through the fog!"
+        tags: [orange, color]
+        emotion: impressed
+
+      - id: costume_color_yellow_001
+        text: "Yellow like gold doubloons! Me favorite color, that is!"
+        tags: [yellow, gold, color]
+        emotion: happy
+
+      - id: costume_color_yellow_002
+        text: "Bright as the sun on the open seas! That yellow costume shines, it does!"
+        tags: [yellow, color]
+        emotion: impressed
+
+      - id: costume_color_yellow_003
+        text: "All that gold! I mean yellow! Though fer a pirate, it's the same thing!"
+        tags: [yellow, gold, color]
+        emotion: amused
+
+      - id: costume_color_green_001
+        text: "Green as the deep sea! Ye'd blend right in with the merfolk down below!"
+        tags: [green, color]
+        emotion: impressed
+
+      - id: costume_color_green_002
+        text: "A fine shade of green! Like the barnacles on me ship's hull! Er, that sounded better in me head."
+        tags: [green, color]
+        emotion: amused
+
+      - id: costume_color_green_003
+        text: "Green! The color of sea glass and emeralds! Ye look like treasure yerself!"
+        tags: [green, color]
+        emotion: impressed
+
+      - id: costume_color_blue_001
+        text: "Blue like the ocean on a calm day! A pirate's favorite sight, that is!"
+        tags: [blue, color]
+        emotion: happy
+
+      - id: costume_color_blue_002
+        text: "That shade of blue! Reminds me of the deep waters where the real treasures lie!"
+        tags: [blue, color]
+        emotion: impressed
+
+      - id: costume_color_blue_003
+        text: "Blue as the flag of a friendly ship! I know ye come in peace. Probably."
+        tags: [blue, color]
+        emotion: amused
+
+      - id: costume_color_indigo_001
+        text: "A deep dark blue! Like the sky just before the stars come out at sea!"
+        tags: [indigo, blue, dark_blue, color]
+        emotion: impressed
+
+      - id: costume_color_indigo_002
+        text: "Indigo! The color of midnight waters! Mysterious and magnificent!"
+        tags: [indigo, dark_blue, color]
+        emotion: dramatic
+
+      - id: costume_color_violet_001
+        text: "Purple! The color of royalty! Are ye a king in disguise, perhaps?"
+        tags: [violet, purple, color]
+        emotion: impressed
+
+      - id: costume_color_violet_002
+        text: "A fine purple costume! That's the color of the rarest sea shells, that is!"
+        tags: [violet, purple, color]
+        emotion: impressed
+
+      - id: costume_color_violet_003
+        text: "Royal purple! I'd bow, but me back isn't what it used to be!"
+        tags: [violet, purple, color]
+        emotion: amused
+
+      - id: costume_color_black_001
+        text: "Black as a moonless night at sea! Now that's a color I respect!"
+        tags: [black, dark, color]
+        emotion: impressed
+
+      - id: costume_color_black_002
+        text: "All in black! A creature of the shadows! After me own heart, ye are!"
+        tags: [black, dark, color]
+        emotion: impressed
+
+      - id: costume_color_black_003
+        text: "Dressed in black from head to toe! Ye'd make a fine pirate with that look!"
+        tags: [black, dark, color]
+        emotion: happy
+
+      - id: costume_color_black_004
+        text: "Dark as the depths of the ocean! That's a proper spooky look fer Halloween!"
+        tags: [black, dark, color]
+        emotion: impressed
+
+      - id: costume_color_white_001
+        text: "White as a ghost ship's sails! Ye gave me quite a fright there!"
+        tags: [white, color]
+        emotion: surprised
+
+      - id: costume_color_white_002
+        text: "All in white! Like a phantom on the waves! Spooky and beautiful!"
+        tags: [white, color]
+        emotion: impressed
+
+      - id: costume_color_white_003
+        text: "White as the foam on a stormy sea! A bold and brilliant choice!"
+        tags: [white, color]
+        emotion: impressed
+
+      - id: costume_color_pink_001
+        text: "Pink! Bright and bold! Like the sky at dawn before a day of plunderin'!"
+        tags: [pink, color]
+        emotion: happy
+
+      - id: costume_color_pink_002
+        text: "A rosy pink costume! That's the color of coral from the tropical reefs!"
+        tags: [pink, color]
+        emotion: happy
+
     generic:
       - id: costume_generic_001
         text: "Now that be a costume worthy of the high seas!"
@@ -182,7 +591,7 @@ voice_lines:
         emotion: impressed
 
       - id: costume_generic_002
-        text: "Arrr, ye look absolutely magnificent, matey!"
+        text: "By thunder, ye look absolutely magnificent, matey!"
         tags: [praise]
         emotion: impressed
 
@@ -201,6 +610,47 @@ voice_lines:
         tags: [praise]
         emotion: impressed
 
+      - id: costume_generic_006
+        text: "I must admit, I thought I'd seen everything. But that? That be somethin' special."
+        tags: [praise, impressed]
+        emotion: impressed
+
+      - id: costume_generic_007
+        text: "Ye put more effort into that costume than me whole crew puts into a day's work!"
+        tags: [praise, humor]
+        emotion: amused
+
+      - id: costume_generic_008
+        text: "Now that's the spirit of Halloween! Makes an old pirate proud, it does!"
+        tags: [praise]
+        emotion: happy
+
+      - id: costume_generic_009
+        text: "I'd recruit ye fer me crew right now if ye weren't so busy collectin' candy!"
+        tags: [praise, recruit]
+        emotion: happy
+
+      - id: costume_generic_010
+        text: "Ye've clearly got a taste fer adventure, dressin' up like that!"
+        tags: [praise]
+        emotion: impressed
+
+    small_children:
+      - id: costume_tiny_001
+        text: "Well aren't ye the tiniest buccaneer I ever did see! Welcome aboard, little one!"
+        tags: [small, toddler, baby]
+        emotion: happy
+
+      - id: costume_tiny_002
+        text: "Oh my, a wee little pirate! Or is that a wee little princess? Either way, adorable!"
+        tags: [small, baby, cute]
+        emotion: happy
+
+      - id: costume_tiny_003
+        text: "Now there's a future captain of the seas if ever I saw one! Start 'em young, I always say!"
+        tags: [small, toddler]
+        emotion: happy
+
   farewells:
     candy_related:
       - id: farewell_candy_001
@@ -212,6 +662,16 @@ voice_lines:
         text: "Grab yer loot and set sail fer more sweets, ye little pirate!"
         tags: [candy]
         emotion: happy
+
+      - id: farewell_candy_003
+        text: "Take yer plunder and be off! There's plenty more treasure to find tonight!"
+        tags: [candy, treasure]
+        emotion: happy
+
+      - id: farewell_candy_004
+        text: "Guard that candy with yer life! Pirates are always after treasure, ye know!"
+        tags: [candy, warning]
+        emotion: amused
 
     adventure:
       - id: farewell_adv_001
@@ -229,6 +689,32 @@ voice_lines:
         tags: [encouragement]
         emotion: happy
 
+      - id: farewell_adv_004
+        text: "May the wind be ever at yer back and the candy be ever in yer bag!"
+        tags: [nautical, blessing]
+        emotion: happy
+
+      - id: farewell_adv_005
+        text: "Onward to adventure, me hearty! The night is still young!"
+        tags: [encouragement]
+        emotion: happy
+
+    dramatic:
+      - id: farewell_dramatic_001
+        text: "Remember this night, for ye stood before Captain Barnacle Bill and lived to tell the tale!"
+        tags: [dramatic, memorable]
+        emotion: dramatic
+
+      - id: farewell_dramatic_002
+        text: "Go now, while I'm still feelin' generous! Captain Bill's moods change like the tides!"
+        tags: [dramatic, humor]
+        emotion: menacing
+
+      - id: farewell_dramatic_003
+        text: "This be not goodbye, me hearty. Just until our paths cross on the high seas again!"
+        tags: [dramatic, nautical]
+        emotion: dramatic
+
     generic:
       - id: farewell_gen_001
         text: "Until we meet again on the spooky seas, matey!"
@@ -236,14 +722,24 @@ voice_lines:
         emotion: happy
 
       - id: farewell_gen_002
-        text: "Arrr, away with ye! And happy Halloween!"
+        text: "Off with ye now! And happy Halloween!"
         tags: []
         emotion: happy
+
+      - id: farewell_gen_003
+        text: "Be off with ye! And tell the others that Captain Bill is awaitin'!"
+        tags: [send_more]
+        emotion: happy
+
+      - id: farewell_gen_004
+        text: "Away ye go! And stay out of trouble! Or don't. I'm a pirate, not yer mother!"
+        tags: [humor]
+        emotion: amused
 
   idle:
     waiting:
       - id: idle_wait_001
-        text: "Arrr, where be all the little scallywags tonight?"
+        text: "Where be all the little scallywags tonight?"
         tags: [waiting]
         emotion: curious
 
@@ -252,11 +748,41 @@ voice_lines:
         tags: [waiting]
         emotion: curious
 
+      - id: idle_wait_003
+        text: "The sea is calm, the night is quiet. Too quiet, if ye ask me."
+        tags: [waiting, atmospheric]
+        emotion: neutral
+
+      - id: idle_wait_004
+        text: "I didn't dress up like this just to talk to meself all night! Where is everyone?"
+        tags: [waiting, impatient]
+        emotion: amused
+
+      - id: idle_wait_005
+        text: "Come one, come all! Captain Barnacle Bill has treasure to give away!"
+        tags: [calling, invitation]
+        emotion: happy
+
     grumbling:
       - id: idle_grumble_001
         text: "These old eyes be waitin' fer some costumes!"
         tags: [impatient]
         emotion: neutral
+
+      - id: idle_grumble_002
+        text: "I've been standin' here longer than I spent marooned on that island. And that was three years!"
+        tags: [impatient, backstory]
+        emotion: neutral
+
+      - id: idle_grumble_003
+        text: "In me day, the children came to US fer candy! Now I have to beg 'em to show up!"
+        tags: [impatient, grumpy]
+        emotion: amused
+
+      - id: idle_grumble_004
+        text: "Even Davy Jones gets more visitors than me tonight. And he lives underwater!"
+        tags: [impatient, humor]
+        emotion: amused
 
     singing:
       - id: idle_sing_001
@@ -264,10 +790,57 @@ voice_lines:
         tags: [song]
         emotion: happy
 
+      - id: idle_sing_002
+        text: "Fifteen men on a dead man's chest! Yo ho ho and a bag of sweets!"
+        tags: [song]
+        emotion: happy
+
+      - id: idle_sing_003
+        text: "What shall we do with a drunken sailor? Give him candy and send him home, I say!"
+        tags: [song, humor]
+        emotion: amused
+
+    storytelling:
+      - id: idle_story_001
+        text: "Did I ever tell ye about the time I outran a hurricane in nothing but a rowboat? No? Well, gather round..."
+        tags: [story, backstory]
+        emotion: dramatic
+
+      - id: idle_story_002
+        text: "Ye know, I once had a kraken follow me ship fer three days. Turned out it just wanted a belly rub."
+        tags: [story, humor]
+        emotion: amused
+
+      - id: idle_story_003
+        text: "They say there's a ghost ship that sails these waters every Halloween. I should know. I sold it to 'em."
+        tags: [story, spooky, humor]
+        emotion: amused
+
+      - id: idle_story_004
+        text: "Long ago, before I was a captain, I was just a lad, dreamin' of the sea. Now look at me! Handin' out candy!"
+        tags: [story, backstory]
+        emotion: amused
+
+    atmospheric:
+      - id: idle_atmo_001
+        text: "The fog rolls in thick tonight. Perfect weather fer pirates and ghouls alike."
+        tags: [atmospheric, spooky]
+        emotion: neutral
+
+      - id: idle_atmo_002
+        text: "I can feel it in me bones... there be mischief in the air tonight!"
+        tags: [atmospheric, spooky]
+        emotion: menacing
+
+      - id: idle_atmo_003
+        text: "Listen to that wind! Sounds like the wailin' of lost sailors. Or maybe it's just the neighbors."
+        tags: [atmospheric, humor]
+        emotion: amused
+
   fallbacks:
     positive:
       - id: fallback_pos_001
-        text: "Arrr, what a wonderful sight ye be!"
+        text: "Well now, what a wonderful sight ye be!"
         tags: [positive]
         emotion: happy
 
@@ -281,15 +854,40 @@ voice_lines:
         tags: [positive]
         emotion: happy
 
+      - id: fallback_pos_004
+        text: "Ye've warmed this old pirate's heart, and that takes some doin'!"
+        tags: [positive, warm]
+        emotion: happy
+
+      - id: fallback_pos_005
+        text: "Spectacular! Simply spectacular, I say!"
+        tags: [positive]
+        emotion: impressed
+
+      - id: fallback_pos_006
+        text: "That's the finest thing these old eyes have seen since buried treasure!"
+        tags: [positive, treasure]
+        emotion: impressed
+
     questions:
       - id: fallback_q_001
         text: "And what manner of creature might ye be tonight?"
         tags: [question]
         emotion: curious
 
+      - id: fallback_q_002
+        text: "Tell me, have ye traveled far to reach these shores?"
+        tags: [question, travel]
+        emotion: curious
+
+      - id: fallback_q_003
+        text: "Now then, what brings ye to Captain Barnacle Bill's domain this fine evening?"
+        tags: [question]
+        emotion: curious
+
     interjections:
       - id: fallback_int_001
-        text: "Arrr!"
+        text: "By the powers!"
         tags: [short]
         emotion: neutral
 
@@ -308,15 +906,61 @@ voice_lines:
         tags: [short]
         emotion: neutral
 
+      - id: fallback_int_005
+        text: "By thunder!"
+        tags: [short]
+        emotion: surprised
+
+      - id: fallback_int_006
+        text: "Blow me down!"
+        tags: [short]
+        emotion: surprised
+
+      - id: fallback_int_007
+        text: "Upon me soul!"
+        tags: [short]
+        emotion: surprised
+
+    encouragement:
+      - id: fallback_enc_001
+        text: "That's the spirit, me hearty! Ye've got pirate blood in ye, I can tell!"
+        tags: [encouragement]
+        emotion: happy
+
+      - id: fallback_enc_002
+        text: "Now there's a proper trick-or-treater! Ye make an old pirate proud!"
+        tags: [encouragement]
+        emotion: happy
+
   jokes:
     puns:
       - id: joke_pun_001
-        text: "Why do pirates make terrible singers? Because they can only hit the high Cs! Arrr!"
+        text: "Why do pirates make terrible singers? Because they can only hit the high Cs!"
         tags: [pun]
         emotion: amused
 
       - id: joke_pun_002
         text: "What's a pirate's favorite letter? Ye'd think it's R, but it's really the C!"
+        tags: [pun]
+        emotion: amused
+
+      - id: joke_pun_003
+        text: "How much did the pirate pay fer his earrings? About a buck an ear!"
+        tags: [pun]
+        emotion: amused
+
+      - id: joke_pun_004
+        text: "Why couldn't the pirate play cards? Because he was standin' on the deck!"
+        tags: [pun]
+        emotion: amused
+
+      - id: joke_pun_005
+        text: "What's a pirate's favorite kind of exercise? The plank!"
+        tags: [pun]
+        emotion: amused
+
+      - id: joke_pun_006
+        text: "Where do pirates go fer a drink? The sandbar!"
         tags: [pun]
         emotion: amused
 
@@ -326,11 +970,37 @@ voice_lines:
         tags: [compliment]
         emotion: amused
 
+      - id: joke_costume_002
+        text: "I've seen scarier things in me breakfast! But yer costume is a close second!"
+        tags: [humor, tease]
+        emotion: amused
+
+      - id: joke_costume_003
+        text: "Don't tell anyone, but yer costume is better than mine. And I've been wearin' this fer centuries!"
+        tags: [humor, self_deprecating]
+        emotion: amused
+
+    stories:
+      - id: joke_story_001
+        text: "I once challenged Davy Jones to a game of dice. I lost me favorite hat. It was a really good hat."
+        tags: [story, humor]
+        emotion: amused
+
+      - id: joke_story_002
+        text: "Ye know why I became a pirate? The dental plan is terrible, but the views are magnificent!"
+        tags: [humor, self_deprecating]
+        emotion: amused
+
+      - id: joke_story_003
+        text: "Me first mate asked me why I carry a ship's wheel in me belt. I told him it's drivin' me nuts!"
+        tags: [pun, humor]
+        emotion: amused
+
 # Metadata
 metadata:
-  version: "1.0"
-  total_lines: 50
-  last_updated: "2026-01-24"
+  version: "2.1"
+  total_lines: 188
+  last_updated: "2026-03-04"
   categories:
     - greetings
     - costume_reactions

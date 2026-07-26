@@ -111,16 +111,20 @@ class MoondreamVLM(IVisionModel):
             PIL Image
         """
         if isinstance(image, Image.Image):
-            return image
+            pil_img = image
         elif isinstance(image, np.ndarray):
             # Assume BGR (OpenCV format), convert to RGB
             if len(image.shape) == 3 and image.shape[2] == 3:
                 image = image[:, :, ::-1]  # BGR to RGB
-            return Image.fromarray(image)
+            pil_img = Image.fromarray(image)
         elif isinstance(image, (str, Path)):
-            return Image.open(image).convert("RGB")
+            pil_img = Image.open(image).convert("RGB")
         else:
             raise ValueError(f"Unsupported image type: {type(image)}")
+
+        # Downscale for faster encoding
+        pil_img.thumbnail((384, 384))
+        return pil_img
 
     def describe_image(
         self,
@@ -150,8 +154,10 @@ class MoondreamVLM(IVisionModel):
             # Encode the image
             enc_image = self._model.encode_image(pil_image)
 
-            # Generate answer
-            answer = self._model.answer_question(enc_image, prompt, self._tokenizer)
+            # Generate answer (cap tokens for speed)
+            answer = self._model.answer_question(
+                enc_image, prompt, self._tokenizer, max_new_tokens=30
+            )
 
             elapsed_ms = (time.time() - start_time) * 1000
             logger.debug(f"VLM inference completed in {elapsed_ms:.0f}ms")
@@ -179,7 +185,7 @@ class MoondreamVLM(IVisionModel):
         with torch.no_grad():
             outputs = self._model.generate(
                 **inputs,
-                max_new_tokens=256,
+                max_new_tokens=30,
                 do_sample=True,
                 temperature=0.7,
             )
@@ -265,7 +271,7 @@ def test_costume_description():
     vlm = MoondreamVLM()
     vlm.warmup()
 
-    prompt = "Describe this person's Halloween costume in one brief sentence. Focus on what character or thing they are dressed as."
+    prompt = "Describe the color and type of costume in 3-5 words."
 
     if image_path:
         print(f"Analyzing image: {image_path}")
