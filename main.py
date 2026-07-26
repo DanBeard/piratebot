@@ -63,9 +63,14 @@ class PirateBot:
         self.llm: Optional[ILanguageModel] = None
         self.tts: Optional[ParrottsTTS] = None
         self.avatar: Optional[IAvatarController] = None
+        self.props: Optional[Any] = None
 
         # Webcam
         self.cap: Optional[cv2.VideoCapture] = None
+
+        # Idle state
+        self._idle_task: Optional[asyncio.Task] = None
+        self._last_any_interaction_time = 0.0
 
         # State tracking
         self.last_interaction_time: dict[int, float] = {}  # track_id -> timestamp
@@ -134,6 +139,7 @@ class PirateBot:
             self.llm.warmup()
 
         await self._setup_parrotts()
+        await self._setup_props()
 
         # Choose avatar backend: portrait (browser-based 2D) or Godot 3D.
         portrait_config = self.config.get("portrait")
@@ -174,6 +180,30 @@ class PirateBot:
         )
         self.tts.warmup()
         logger.info("Parrotts TTS ready")
+
+    async def _setup_props(self) -> None:
+        """Initialize the prop mesh if enabled."""
+        pm_config = self.config.get("prop_mesh", {})
+        if not pm_config.get("enabled", False):
+            logger.info("Prop mesh disabled")
+            return
+
+        from services.prop_mesh import PropMeshBus
+        from services.prop_controller import PropController
+
+        self.props = PropController(
+            mesh=PropMeshBus(
+                source=pm_config.get("source", "piratebot"),
+                mode=pm_config.get("mode", "server"),
+                host=pm_config.get("host", "0.0.0.0"),
+                port=pm_config.get("port", 9001),
+                broker_url=pm_config.get("broker_url"),
+            ),
+            avatar=self.avatar,
+            auto_triggers=pm_config.get("auto_triggers", {}),
+        )
+        await self.props.mesh.connect()
+        logger.info("Prop mesh ready")
 
     def _setup_webcam(self) -> None:
         """Initialize webcam capture."""
@@ -271,11 +301,9 @@ class PirateBot:
                 intent = InteractionIntent.COSTUME_REACT
 
             # 3. Select voice line based on intent
-            audio_path = await self._process_with_intent(intent, description)
-
-            if audio_path:
-                # 4. Play audio with lip-sync on avatar
-                await self.avatar.play_audio_with_lipsync(audio_path)
+            selection = await self._select_with_intent(intent, description)
+            if selection:
+                await self._play_selection(selection)
 
             # Cache appearance and mark interacted on success
             if intent == InteractionIntent.COSTUME_REACT:
@@ -295,29 +323,38 @@ class PirateBot:
         except Exception as e:
             logger.error(f"Error processing detection: {e}", exc_info=True)
 
+    async def _select_with_intent(
+        self, intent: InteractionIntent, costume_description: str
+    ) -> Optional[VoiceLineSelection]:
+        """Select a voice line for the current intent."""
+        if intent == InteractionIntent.RETURNING:
+            return self._select_voice_line_for_intent(intent)
+        return self._select_voice_line_direct(costume_description)
+
+    async def _play_selection(self, selection: VoiceLineSelection) -> None:
+        """Resolve audio, trigger props, and play the selected line."""
+        audio_path = self.tts._get_audio_path(selection.line)
+
+        # Notify prop mesh before speaking so effects sync with audio start.
+        if self.props:
+            await self.props.on_speak(
+                line_id=selection.line_id,
+                text=selection.line.text,
+                emotion=selection.line.emotion,
+                tags=selection.line.tags,
+            )
+
+        await self.avatar.play_audio_with_lipsync(audio_path)
+        self._last_any_interaction_time = time.time()
+
     async def _process_with_intent(
         self, intent: InteractionIntent, costume_description: str
     ) -> Optional[Path]:
-        """Select and resolve a voice line based on interaction intent."""
-        if intent == InteractionIntent.RETURNING:
-            selected = self._select_voice_line_for_intent(intent)
-        else:
-            selected = self._select_voice_line_direct(costume_description)
-
-        if not selected or not selected.line:
-            logger.warning(f"No voice line found for intent {intent.value}")
+        """Legacy helper: resolve selected line to audio path."""
+        selection = await self._select_with_intent(intent, costume_description)
+        if selection is None:
             return None
-
-        logger.info(
-            f"Selected voice line: {selected.line_id} "
-            f"(intent={intent.value}, method={selected.method})"
-        )
-
-        try:
-            return self.tts._get_audio_path(selected.line)
-        except Exception as e:
-            logger.error(f"Failed to fetch audio for {selected.line_id}: {e}")
-            return None
+        return self.tts._get_audio_path(selection.line)
 
     async def _play_farewell(self, state) -> None:
         """Play a farewell voice line for a departing person."""
@@ -333,7 +370,17 @@ class PirateBot:
             return
 
         logger.info(f"Playing farewell for track {state.track_id}: {line.text}")
+
+        if self.props:
+            await self.props.on_speak(
+                line_id=line.id,
+                text=line.text,
+                emotion=line.emotion,
+                tags=line.tags,
+            )
+
         await self.avatar.play_audio_with_lipsync(audio_path)
+        self._last_any_interaction_time = time.time()
 
     def _select_voice_line_for_intent(
         self, intent: InteractionIntent
@@ -418,10 +465,14 @@ class PirateBot:
                     state = self.interaction_manager.on_departure(track_id)
                     if state and state.interacted:
                         await self._play_farewell(state)
+                    if self.props:
+                        await self.props.on_departure(track_id)
 
                 # 2. Arrivals → register in state manager
                 for track_id in arrived:
                     self.interaction_manager.on_arrival(track_id)
+                    if self.props:
+                        await self.props.on_arrival(track_id)
 
                 # 3. Process detections (existing _should_interact filter)
                 for detection in detections:
@@ -453,8 +504,6 @@ class PirateBot:
             self.vlm.cleanup()
             self.vlm = None
         if self.llm:
-            # OllamaLLM doesn't expose cleanup(); the httpx client is
-            # closed in __del__. Setting to None breaks circular refs.
             self.llm = None
         if self.tts:
             self.tts.cleanup()
@@ -465,6 +514,12 @@ class PirateBot:
             except Exception as e:
                 logger.warning(f"Avatar disconnect error: {e}")
             self.avatar = None
+        if self.props:
+            try:
+                await self.props.mesh.disconnect()
+            except Exception as e:
+                logger.warning(f"Prop mesh disconnect error: {e}")
+            self.props = None
 
         logger.info("Shutdown complete")
 

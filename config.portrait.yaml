@@ -49,6 +49,28 @@ parrotts:
   character: "pirate"
   cache_dir: "data/parrotts_cache"
 
+# Prop Mesh — distributed Halloween props (fog, thunder, strobes, servos).
+# Any prop that speaks JSON over WebSocket can join the mesh.
+prop_mesh:
+  enabled: true
+  source: "piratebot"
+  mode: "server"  # server = host mesh, client = connect to broker, both = both
+  host: "0.0.0.0"
+  port: 9001
+  # broker_url: "ws://192.168.0.100:9001/ws"  # only needed in client/both mode
+  # Auto-triggers map emotions or line tags to prop events.
+  auto_triggers:
+    smoke.burst:
+      - emotion: menacing
+    thunder.clap:
+      - emotion: surprised
+      - emotion: angry
+    strobe.flash:
+      - emotion: surprised
+      - tag: prop:strobe
+    fog.thick:
+      - tag: prop:fog
+
 # Avatar (Portrait WebSocket)
 portrait:
   host: "localhost"
@@ -58,9 +80,6 @@ portrait:
   # Directory where pre-computed viseme JSON files live.
   visemes_dir: "data/parrotts_cache"
   # Asset set (subfolder of portrait_viewer/assets) to load.
-  # Generate a new set with:
-  #   uv run python tools/generate_portrait_assets.py --output portrait_viewer/assets --set <name>
-  # Then change this value to swap pirates/backgrounds without editing code.
   asset_set: "default"
 
 # Prompts (only used if llm.enabled is true)
