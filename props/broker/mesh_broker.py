@@ -31,7 +31,7 @@ def _now() -> float:
 
 class MeshBroker:
     """WebSocket broker with message bus, optional MQTT bridge, UDP discovery,
-    and static file serving for the control center."""
+    and static file serving for the control center and displays."""
 
     def __init__(
         self,
@@ -40,6 +40,7 @@ class MeshBroker:
         http_port: int = 9000,
         udp_port: int = 9002,
         static_dir: Optional[Path] = None,
+        display_dirs: Optional[dict[str, Path]] = None,
         mqtt_url: Optional[str] = None,
         session: str = "halloween-2026",
     ):
@@ -48,6 +49,7 @@ class MeshBroker:
         self.http_port = http_port
         self.udp_port = udp_port
         self.static_dir = static_dir
+        self.display_dirs = display_dirs or {}
         self.mqtt_url = mqtt_url
         self.session = session
 
@@ -73,6 +75,15 @@ class MeshBroker:
                 "Run `npm run build` in props/control_center."
             )
             app.router.add_get("/", self._index_placeholder)
+
+        for name, path in self.display_dirs.items():
+            if not path.exists():
+                logger.warning(f"Display dir not found: {path}. Run `npm run build` in props/displays/{name}.")
+                continue
+            route = f"/{name}/"
+            app.router.add_get(route, self._display_index_factory(path))
+            app.router.add_static(f"/{name}/assets/", path / "assets", name=f"{name}_assets")
+            logger.info(f"Serving display '{name}' from {path} at /{name}/")
 
         self._runner = web.AppRunner(app)
         await self._runner.setup()
@@ -122,6 +133,14 @@ class MeshBroker:
     async def _serve_index(self, _: web.Request) -> web.Response:
         index_path = self.static_dir / "index.html"
         return web.FileResponse(index_path) if index_path.exists() else self._index_placeholder(_)
+
+    def _display_index_factory(self, display_dir: Path):
+        async def _display_index(_: web.Request) -> web.Response:
+            index_path = display_dir / "index.html"
+            if not index_path.exists():
+                return web.Response(text=f"Display index not found at {index_path}", status=404)
+            return web.FileResponse(index_path)
+        return _display_index
 
     async def _ws_handler(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse()
@@ -250,6 +269,8 @@ def main() -> int:
     parser.add_argument("--http-port", type=int, default=9000)
     parser.add_argument("--udp-port", type=int, default=9002)
     parser.add_argument("--static-dir", type=str, default="props/control_center/dist")
+    parser.add_argument("--garage-dir", type=str, default="props/displays/garage_ship/dist")
+    parser.add_argument("--pumpkins-dir", type=str, default="props/displays/pumpkins/dist")
     parser.add_argument("--mqtt-url")
     parser.add_argument("--session", default="halloween-2026")
     parser.add_argument("--log-level", default="INFO")
@@ -266,6 +287,10 @@ def main() -> int:
         http_port=args.http_port,
         udp_port=args.udp_port,
         static_dir=Path(args.static_dir).expanduser(),
+        display_dirs={
+            "garage_ship": Path(args.garage_dir).expanduser(),
+            "pumpkins": Path(args.pumpkins_dir).expanduser(),
+        },
         mqtt_url=args.mqtt_url,
         session=args.session,
     )

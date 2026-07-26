@@ -297,8 +297,10 @@ temp/
 docs/_build/
 site/
 
-# Control center build output (keep dist so broker can serve it)
+# Control center and display build outputs (keep dist so broker can serve them)
 !props/control_center/dist/
+!props/displays/garage_ship/dist/
+!props/displays/pumpkins/dist/
 
 # PlatformIO build artifacts
 .pio/
