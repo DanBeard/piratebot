@@ -1,0 +1,110 @@
+# PirateBot Porch-PC Configuration
+#
+# This config is tuned for a temporary Halloween setup on a gaming PC
+# (NVIDIA RTX 3080, 64GB RAM) that is NOT a permanent cluster worker.
+#
+#   - YOLO detection + Moondream2 VLM run locally on the 3080.
+#   - The 3D avatar runs in Godot on the same machine.
+#   - Voice lines come from the cluster parrotts service, but they are
+#     pre-mirrored to data/parrotts_cache/ by scripts/setup-porch.sh so the
+#     porch PC can operate offline during the show.
+#
+# To use this config:
+#     uv run python main.py --config config.porch.yaml
+
+# GPU Assignments
+# The 3080 runs both YOLO and Moondream2.  They fit comfortably together
+# (~1GB YOLO + ~5GB Moondream2).  Use "cuda" for both so the same device
+# string works regardless of which GPU index the display adapter claims.
+gpu:
+  display: 0
+  vlm: "cuda"
+
+# Webcam Settings
+webcam:
+  device_id: 0        # /dev/video0 (Logitech C920 or similar)
+  width: 1280
+  height: 720
+  fps: 30
+
+# Person Detection (YOLOv8)
+detector:
+  model: "yolov8n.pt"           # nano = fast, plenty accurate for people
+  confidence_threshold: 0.5
+  min_person_area: 5000         # ignore tiny far-away detections
+  cooldown_seconds: 30          # don't spam the same person
+
+# Vision Language Model (Moondream2)
+vlm:
+  model_id: "vikhyatk/moondream2"
+  revision: "2025-01-09"
+  device: "cuda"
+  prompt: "Describe the color and type of costume in 3-5 words."
+
+# Language Model (cluster Ollama via litellm)
+#
+# The default pipeline does NOT use a live LLM — it picks from the pre-
+# generated parrotts voice library.  Enable this only if you want the LLM
+# to generate custom comments on unusual costumes (slower, needs cluster).
+llm:
+  enabled: false
+  base_url: "http://192.168.0.14:4000/v1"   # kube-vip / litellm
+  model: "local-moderate"                    # Qwen3.5-14B-A3B on k3s-7/k3s-8
+  max_tokens: 100
+  temperature: 0.8
+
+# Parrotts cluster TTS — the only voice backend.
+#
+# Before showtime, run:
+#     python tools/mirror_parrotts_cache.py --base-url http://192.168.0.14:18003
+# (via kubectl port-forward svc/parrotts 18003:8000)
+# This downloads every voice line to data/parrotts_cache/ locally.
+parrotts:
+  base_url: "http://192.168.0.14:18003"   # port-forward URL; offline it uses cache
+  character: "pirate"
+  cache_dir: "data/parrotts_cache"
+
+# Avatar (Godot WebSocket)
+avatar:
+  host: "localhost"
+  port: 9876
+
+# Prompts
+prompts:
+  system: |
+    You are Captain Barnacle Bill, a friendly pirate who loves Halloween!
+    You speak with a pirate accent using words like "Arrr", "matey", "ahoy",
+    "shiver me timbers", and "blimey".
+
+    Your job is to comment on trick-or-treaters' costumes in a fun, family-friendly way.
+    Keep responses SHORT (1-2 sentences max). Be enthusiastic and encouraging!
+
+    Examples:
+    - "Arrr, a mighty fine skeleton ye be! Ye'd fit right in on me ghost ship!"
+    - "Blimey! A wee mermaid! Best stay out of me fishing nets, matey!"
+    - "Shiver me timbers, a superhero! Even pirates need heroes sometimes!"
+
+  user_template: |
+    A trick-or-treater just arrived! Here's what I see: {costume_description}
+
+    Give them a short, fun pirate comment about their costume!
+
+# Tracking — cross-track re-identification
+tracking:
+  appearance_cache_ttl: 600
+  appearance_similarity: 0.85
+
+# Idle behavior (when no one is around)
+idle:
+  enabled: true
+  phrases:
+    - "Arrr, where be all the little scallywags tonight?"
+    - "Any brave souls out there lookin' fer treasure... I mean candy?"
+    - "*adjusts eyepatch* These old eyes be waitin' fer some costumes!"
+  min_interval_seconds: 45
+  max_interval_seconds: 120
+
+# Logging
+logging:
+  level: INFO
+  file: "piratebot.log"

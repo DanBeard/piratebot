@@ -49,6 +49,8 @@ class YoloDetector(IDetector):
         self.device = device
         self.enable_tracking = enable_tracking
         self._model = None
+        self._last_track_ids: set[int] = set()
+        self._current_track_ids: set[int] = set()
 
         logger.info(
             f"YoloDetector initialized: model={model}, "
@@ -171,6 +173,7 @@ class YoloDetector(IDetector):
             )
 
         detections = []
+        current_ids: set[int] = set()
 
         for result in results:
             boxes = result.boxes
@@ -184,6 +187,7 @@ class YoloDetector(IDetector):
                 track_id = None
                 if self.enable_tracking and box.id is not None:
                     track_id = int(box.id[0])
+                    current_ids.add(track_id)
 
                 detections.append(
                     Detection(
@@ -197,7 +201,23 @@ class YoloDetector(IDetector):
                     )
                 )
 
+        self._last_track_ids = self._current_track_ids
+        self._current_track_ids = current_ids
         return detections
+
+    def get_track_events(self) -> tuple[list[int], list[int]]:
+        """
+        Return track lifecycle events since the last detection call.
+
+        Returns:
+            (arrived_track_ids, departed_track_ids)
+        """
+        if not self.enable_tracking:
+            return [], []
+
+        arrived = sorted(self._current_track_ids - self._last_track_ids)
+        departed = sorted(self._last_track_ids - self._current_track_ids)
+        return arrived, departed
 
     def warmup(self) -> None:
         """

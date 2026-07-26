@@ -9,6 +9,7 @@ Main orchestrator that coordinates all components:
 - 3D avatar control with lip-sync
 """
 
+import argparse
 import asyncio
 import logging
 import signal
@@ -52,6 +53,7 @@ class PirateBot:
         Args:
             config_path: Path to YAML configuration file
         """
+        self.config_path = config_path
         self.config = self._load_config(config_path)
         self.running = False
 
@@ -99,23 +101,37 @@ class PirateBot:
         from services.ollama_llm import OllamaLLM
         from services.godot_avatar import GodotAvatarController
 
+        gpu_vlm = self.config["gpu"]["vlm"]
+        vlm_device = (
+            f"cuda:{gpu_vlm}"
+            if isinstance(gpu_vlm, int)
+            else gpu_vlm
+        )
+
         self.detector = YoloDetector(
             model=self.config["detector"]["model"],
             confidence_threshold=self.config["detector"]["confidence_threshold"],
+            device=vlm_device,
         )
         self.detector.warmup()
 
         self.vlm = MoondreamVLM(
             model_id=self.config["vlm"]["model_id"],
-            device=f"cuda:{self.config['gpu']['vlm']}",
+            revision=self.config["vlm"].get("revision"),
+            device=vlm_device,
         )
         self.vlm.warmup()
 
-        self.llm = OllamaLLM(
-            base_url=self.config["llm"]["base_url"],
-            model=self.config["llm"]["model"],
-        )
-        self.llm.warmup()
+        # LLM is optional. When enabled, it must be reachable via Ollama.
+        # The default porch path uses the pre-generated parrotts voice library,
+        # so no live LLM generation is required.
+        llm_config = self.config.get("llm", {})
+        if llm_config.get("enabled", False):
+            self.llm = OllamaLLM(
+                base_url=llm_config["base_url"],
+                model=llm_config["model"],
+            )
+            self.llm.warmup()
 
         await self._setup_parrotts()
 
@@ -378,8 +394,7 @@ class PirateBot:
                     continue
 
                 # Detect people
-                # detections = self.detector.detect_people(frame)
-                detections = []  # Placeholder until detector is implemented
+                detections = self.detector.detect_people(frame)
 
                 # Get track lifecycle events from the most recent detect()
                 arrived, departed = self.detector.get_track_events()
@@ -412,26 +427,45 @@ class PirateBot:
         logger.info("Shutting down PirateBot...")
         self.running = False
 
-        # Release webcam
         if self.cap is not None:
             self.cap.release()
+            self.cap = None
 
         # Clean up components
         if self.detector:
             self.detector.cleanup()
+            self.detector = None
         if self.vlm:
             self.vlm.cleanup()
+            self.vlm = None
+        if self.llm:
+            # OllamaLLM doesn't expose cleanup(); the httpx client is
+            # closed in __del__. Setting to None breaks circular refs.
+            self.llm = None
         if self.tts:
             self.tts.cleanup()
+            self.tts = None
         if self.avatar:
-            await self.avatar.disconnect()
+            try:
+                await self.avatar.disconnect()
+            except Exception as e:
+                logger.warning(f"Avatar disconnect error: {e}")
+            self.avatar = None
 
         logger.info("Shutdown complete")
 
 
 async def main():
     """Entry point."""
-    bot = PirateBot()
+    parser = argparse.ArgumentParser(description="PirateBot Halloween pirate")
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="Path to YAML configuration file (default: config.yaml)",
+    )
+    args = parser.parse_args()
+
+    bot = PirateBot(config_path=args.config)
 
     # Handle Ctrl+C gracefully
     loop = asyncio.get_event_loop()

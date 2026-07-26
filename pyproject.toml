@@ -16,6 +16,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Porch/gaming PC runtime (RTX 3080 + cluster parrotts)
+porch = [
+    "ultralytics>=8.0.0",
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    "transformers>=4.46.0,<5.0.0",
+    "accelerate>=0.26.0",
+    "torch>=2.5.0",
+    "einops>=0.7.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "websockets>=12.0",
+    "python-dotenv>=1.0.0",
+]
+
 # Mac/Apple Silicon - TTS with Qwen3 voice cloning (primary platform)
 mac = [
     "mlx-audio[tts]>=0.3.0rc1",  # Qwen3-TTS with voice cloning
@@ -82,3 +97,6 @@ ignore = ["E501"]  # Line length handled separately
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "gpu: tests requiring CUDA GPU (deselect with '-m \"not gpu\"')",
+]
