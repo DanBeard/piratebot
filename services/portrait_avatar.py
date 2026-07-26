@@ -114,12 +114,19 @@ class PortraitAvatarController(IAvatarController):
 
         app = web.Application()
         app.router.add_get("/ws", websocket_handler)
+        app.router.add_static(
+            "/audio/",
+            path=str(self.visemes_dir.parent / "parrotts_cache"),
+            name="audio",
+        )
         app.router.add_static("/", path=str(self.assets_dir), name="static")
         app.router.add_get("/", index_handler)
 
-        self._http_server = asyncio.create_task(
-            web._run_app(app, host=self.host, port=self.port, print=None)
-        )
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, host=self.host, port=self.port)
+        self._http_server = asyncio.create_task(site.start())
+        self._runner = runner
         logger.info(f"Portrait HTTP server at http://{self.host}:{self.port}/")
         return True
 
@@ -131,12 +138,18 @@ class PortraitAvatarController(IAvatarController):
             except Exception as exc:
                 logger.warning(f"Error closing browser ws: {exc}")
         self._clients.clear()
+
         if self._http_server:
             self._http_server.cancel()
             try:
                 await self._http_server
             except asyncio.CancelledError:
                 pass
+
+        runner = getattr(self, "_runner", None)
+        if runner:
+            await runner.cleanup()
+
         self._connected = False
         logger.info("Portrait avatar disconnected")
 
