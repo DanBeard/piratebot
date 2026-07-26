@@ -296,3 +296,6 @@ temp/
 
 docs/_build/
 site/
+
+# Control center build output (keep dist so broker can serve it)
+!props/control_center/dist/

@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+.btn {
+  @apply rounded-lg px-4 py-3 font-semibold shadow active:scale-95 transition-transform;
+}
+
+.btn-primary {
+  @apply bg-sky-600 text-white hover:bg-sky-500;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-500;
+}
+
+.btn-scene {
+  @apply bg-slate-700 text-slate-100 hover:bg-slate-600;
+}
+
+.btn-scene-active {
+  @apply bg-emerald-600 text-white;
+}
+
+.tile {
+  @apply bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-lg flex flex-col gap-2;
+}

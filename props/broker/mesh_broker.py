@@ -64,7 +64,8 @@ class MeshBroker:
         app.router.add_get("/ws", self._ws_handler)
 
         if self.static_dir and self.static_dir.exists():
-            app.router.add_static("/", self.static_dir, show_index=True)
+            app.router.add_static("/assets/", self.static_dir / "assets", name="assets")
+            app.router.add_get("/", self._serve_index)
             logger.info(f"Serving control center from {self.static_dir}")
         else:
             logger.warning(
@@ -117,6 +118,10 @@ class MeshBroker:
             ),
             content_type="text/plain",
         )
+
+    async def _serve_index(self, _: web.Request) -> web.Response:
+        index_path = self.static_dir / "index.html"
+        return web.FileResponse(index_path) if index_path.exists() else self._index_placeholder(_)
 
     async def _ws_handler(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse()
