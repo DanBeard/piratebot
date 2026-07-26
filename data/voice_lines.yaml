@@ -67,6 +67,16 @@ voice_lines:
         tags: [welcome, dramatic]
         emotion: impressed
 
+      - id: greet_011
+        text: "Avast! Ye've found the captain's quarters. Mind ye wipe yer boots on the seaweed mat."
+        tags: [welcome, humor]
+        emotion: amused
+
+      - id: greet_012
+        text: "Approach, approach! I promise not to make ye walk the plank. Unless ye ask nicely."
+        tags: [welcome, tease]
+        emotion: happy
+
     group:
       - id: greet_group_001
         text: "By the powers! A whole crew of scallywags approaches! Welcome, me hearties!"
@@ -88,6 +98,16 @@ voice_lines:
         tags: [group]
         emotion: amused
 
+      - id: greet_group_005
+        text: "A raisin' party! Or a boarding party! Either way, welcome aboard!"
+        tags: [group, humor]
+        emotion: happy
+
+      - id: greet_group_006
+        text: "Look at this fine crew! I haven't seen a gang this organized since the Royal Navy!"
+        tags: [group, tease]
+        emotion: amused
+
     returning:
       - id: greet_return_001
         text: "Well well, back fer more treasure, are ye? I admire yer spirit!"
@@ -104,6 +124,16 @@ voice_lines:
         tags: [returning]
         emotion: amused
 
+      - id: greet_return_004
+        text: "Returnin' visitor! Ye must like me company. The feelin' is mutual, mostly."
+        tags: [returning]
+        emotion: happy
+
+      - id: greet_return_005
+        text: "Third time tonight? Ye've got the persistence of a barnacle on a hull!"
+        tags: [returning, tease]
+        emotion: amused
+
     late_night:
       - id: greet_late_001
         text: "Still out at this hour? Ye've got the makings of a proper pirate!"
@@ -113,6 +143,11 @@ voice_lines:
       - id: greet_late_002
         text: "The witching hour draws near and still ye roam! Bold, very bold!"
         tags: [late, dramatic]
+        emotion: impressed
+
+      - id: greet_late_003
+        text: "Past yer bedtime and still trick-or-treatin'? Now that's dedication to the craft!"
+        tags: [late, humor]
         emotion: impressed
 
   costume_reactions:
@@ -162,12 +197,291 @@ voice_lines:
         tags: [monster, scary]
         emotion: impressed
 
-      - id: costume_scary_010
-        text: "Now there's a face that would send me whole crew runnin' below decks!"
-        tags: [scary, monster]
+      - id: costume_scary_011
+        text: "A black cat! Bad luck? Nonsense, any cat on a pirate ship is good luck!"
+        tags: [cat, black_cat, scary]
         emotion: amused
 
-    heroic:
+      - id: costume_scary_012
+        text: "A phantom! A banshee! Whatever ye are, ye've got the screamin' part down!"
+        tags: [ghost, banshee]
+        emotion: surprised
+
+      - id: costume_scary_013
+        text: "A scarecrow! Ye look like ye'd keep the kraken off me corn patch!"
+        tags: [scarecrow, monster]
+        emotion: amused
+
+      - id: costume_scary_014
+        text: "A creepy doll! The kind that comes alive at midnight. Let's not find out, eh?"
+        tags: [doll, creepy]
+        emotion: menacing
+
+      - id: costume_scary_015
+        text: "A plague doctor! I've seen that beak mask before. Not in a good way."
+        tags: [plague_doctor, creepy]
+        emotion: menacing
+
+    food:
+      - id: costume_food_001
+        text: "A taco! Now that's a costume I could sink me teeth into!"
+        tags: [taco, food]
+        emotion: happy
+
+      - id: costume_food_002
+        text: "A slice of pizza! Ye look absolutely delicious, if ye don't mind me sayin'!"
+        tags: [pizza, food]
+        emotion: amused
+
+      - id: costume_food_003
+        text: "A giant candy corn! Talk about wearin' yer dinner on yer sleeve!"
+        tags: [candy_corn, food, halloween]
+        emotion: amused
+
+      - id: costume_food_004
+        text: "A donut! I'd call ye sweet, but I'm more of a saltwater type."
+        tags: [donut, food]
+        emotion: amused
+
+      - id: costume_food_005
+        text: "A hamburger! Ye be the whole meal deal, matey!"
+        tags: [burger, food]
+        emotion: happy
+
+      - id: costume_food_006
+        text: "A walking s'more! Just stay away from the fire, or ye'll melt!"
+        tags: [smore, food]
+        emotion: amused
+
+      - id: costume_food_007
+        text: "A piece of sushi! I've eaten worse things on long voyages. Much worse."
+        tags: [sushi, food]
+        emotion: amused
+
+      - id: costume_food_008
+        text: "A pumpkin! A fine choice, but I prefer me gourds filled with rum. Er, candy."
+        tags: [pumpkin, food]
+        emotion: happy
+
+    vehicles:
+      - id: costume_vehicle_001
+        text: "A race car driver! If we had wheels instead of sails, I'd hire ye as me navigator!"
+        tags: [race_car, car]
+        emotion: impressed
+
+      - id: costume_vehicle_002
+        text: "An astronaut in a rocket ship! Ye've traded the sea fer the stars!"
+        tags: [rocket, space, astronaut]
+        emotion: impressed
+
+      - id: costume_vehicle_003
+        text: "A train conductor! All aboard the candy express!"
+        tags: [train]
+        emotion: happy
+
+      - id: costume_vehicle_004
+        text: "A fire truck! I hope ye brought a hose, because this night is lit!"
+        tags: [fire_truck, vehicle]
+        emotion: amused
+
+      - id: costume_vehicle_005
+        text: "A pirate ship! Now that's a vessel after me own heart!"
+        tags: [ship, boat, pirate]
+        emotion: happy
+
+    video_games:
+      - id: costume_game_001
+        text: "A video game hero! Ye look like ye've got full health and a maxed-out sword!"
+        tags: [video_game, hero]
+        emotion: impressed
+
+      - id: costume_game_002
+        text: "A pixelated adventurer! I remember when heroes came in eight bits!"
+        tags: [video_game, retro]
+        emotion: amused
+
+      - id: costume_game_003
+        text: "A plumber with a mustache! The only pipe I'd trust on a sinkin' ship!"
+        tags: [mario, video_game]
+        emotion: amused
+
+      - id: costume_game_004
+        text: "A little pink puffball! Cute as a sea biscuit, and twice as round!"
+        tags: [kirby, video_game]
+        emotion: happy
+
+      - id: costume_game_005
+        text: "A blocky builder! If ye can build a fort, ye can build a ship!"
+        tags: [minecraft, video_game]
+        emotion: impressed
+
+    memes_culture:
+      - id: costume_meme_001
+        text: "A dancing baby! Now that's a costume older than me! And I'm very old!"
+        tags: [meme, internet]
+        emotion: amused
+
+      - id: costume_meme_002
+        text: "A friendly monster who lives in a trash can! Ye'd make a fine first mate!"
+        tags: [sesame, monster]
+        emotion: happy
+
+      - id: costume_meme_003
+        text: "A dancing banana! I don't know why, but I love it! Shake it again!"
+        tags: [banana, meme]
+        emotion: happy
+
+      - id: costume_meme_004
+        text: "A famous green frog! Rare Pepe? No, rare pirate!"
+        tags: [meme, frog]
+        emotion: amused
+
+      - id: costume_meme_005
+        text: "A skeleton doot-dootin' his trumpet! That's the spirit of the season!"
+        tags: [skeleton, meme]
+        emotion: happy
+
+    historical:
+      - id: costume_hist_001
+        text: "A Roman soldier! I've fought rougher seas than yer empire ever crossed!"
+        tags: [roman, soldier, history]
+        emotion: amused
+
+      - id: costume_hist_002
+        text: "A pharaoh! A ruler of the Nile, now beggin' candy at me door!"
+        tags: [pharaoh, egyptian, history]
+        emotion: amused
+
+      - id: costume_hist_003
+        text: "A Viking! We could raid together, but let's start with the candy bowl!"
+        tags: [viking, history]
+        emotion: happy
+
+      - id: costume_hist_004
+        text: "A knight of old! I've traded blows with worse than ye, and lived to tell!"
+        tags: [knight, medieval, history]
+        emotion: impressed
+
+      - id: costume_hist_005
+        text: "A cowboy! The open range and the open sea have a lot in common, partner!"
+        tags: [cowboy, western]
+        emotion: happy
+
+    pirates_nautical:
+      - id: costume_pirate_001
+        text: "Another pirate! Welcome, me fellow scoundrel! The candy is the real treasure!"
+        tags: [pirate, nautical]
+        emotion: happy
+
+      - id: costume_pirate_002
+        text: "A fine buccaneer ye be! But I'm the captain 'round these waters!"
+        tags: [pirate, nautical]
+        emotion: amused
+
+      - id: costume_pirate_003
+        text: "A mermaid! A fellow creature of the deep! Come to steal me heart, have ye?"
+        tags: [mermaid, nautical]
+        emotion: amused
+
+      - id: costume_pirate_004
+        text: "A sea captain! I'd salute, but I'd have to put down me grog!"
+        tags: [captain, sailor]
+        emotion: happy
+
+      - id: costume_pirate_005
+        text: "A castaway! Ye look like ye've been on an island fer a month!"
+        tags: [castaway, nautical]
+        emotion: amused
+
+    holidays:
+      - id: costume_holiday_001
+        text: "A Christmas elf! A bit early, aren't ye? But I'll allow it, since ye brought cheer!"
+        tags: [christmas, elf]
+        emotion: amused
+
+      - id: costume_holiday_002
+        text: "The Easter bunny! Hoppin' into Halloween? Bold seasonal crossover, I like it!"
+        tags: [easter, bunny]
+        emotion: amused
+
+      - id: costume_holiday_003
+        text: "A leprechaun! If ye've brought gold, I promise to share the candy!"
+        tags: [st_patricks, leprechaun]
+        emotion: happy
+
+      - id: costume_holiday_004
+        text: "Uncle Sam! Want ye fer me candy navy!"
+        tags: [uncle_sam, fourth_july]
+        emotion: amused
+
+    sports_specific:
+      - id: costume_sport_008
+        text: "A football player! With arms like that, ye could row me ship across the Atlantic!"
+        tags: [football, sports]
+        emotion: impressed
+
+      - id: costume_sport_004
+        text: "A soccer star! Fancy footwork, but can ye walk the plank with style?"
+        tags: [soccer, sports]
+        emotion: amused
+
+      - id: costume_sport_005
+        text: "A baseball slugger! Ye could knock a coconut clean off me deck!"
+        tags: [baseball, sports]
+        emotion: impressed
+
+      - id: costume_sport_006
+        text: "A hockey player! Ye look tough enough to skate on the frozen North Sea!"
+        tags: [hockey, sports]
+        emotion: impressed
+
+      - id: costume_sport_007
+        text: "A basketball player! Ye could swab the crow's nest without a ladder!"
+        tags: [basketball, sports]
+        emotion: amused
+
+    quality_effort:
+      - id: costume_quality_001
+        text: "That costume's got more detail than me treasure map collection! Impressive!"
+        tags: [praise, detailed]
+        emotion: impressed
+
+      - id: costume_quality_002
+        text: "Homemade, is it? I can tell by the stitches. That makes it twice as valuable!"
+        tags: [praise, homemade]
+        emotion: impressed
+
+      - id: costume_quality_003
+        text: "Did ye make that yerself? By thunder, ye've got the hands of a shipwright!"
+        tags: [praise, homemade]
+        emotion: impressed
+
+      - id: costume_quality_004
+        text: "A store-bought masterpiece! Nothin' wrong with that when it looks this good!"
+        tags: [praise, store_bought]
+        emotion: happy
+
+      - id: costume_quality_005
+        text: "Simple but deadly effective! Like a good cannon. Or a good punchline."
+        tags: [praise, simple]
+        emotion: amused
+
+    weather_time:
+      - id: costume_weather_001
+        text: "A brave soul, out in this chill! Ye'd survive a polar crossing, I wager!"
+        tags: [cold, weather]
+        emotion: impressed
+
+      - id: costume_weather_002
+        text: "Rain or shine, ye're huntin' candy! That's the mark of a true adventurer!"
+        tags: [rain, weather]
+        emotion: impressed
+
+      - id: costume_weather_003
+        text: "A fine night fer trick-or-treatin'! The moon is full and the ghouls are restless!"
+        tags: [full_moon, night]
+        emotion: dramatic
+
       - id: costume_hero_001
         text: "A superhero! Even us pirates need a hero now and then!"
         tags: [superhero, hero]
@@ -390,6 +704,16 @@ voice_lines:
         tags: [time_traveler, future, sci_fi]
         emotion: curious
 
+      - id: costume_scifi_004
+        text: "A space marine! Locked, loaded, and ready fer candy duty!"
+        tags: [space_marine, sci_fi]
+        emotion: impressed
+
+      - id: costume_scifi_005
+        text: "A tiny green alien! Take me to yer leader! Or yer candy supplier, whichever's closer!"
+        tags: [alien, sci_fi]
+        emotion: amused
+
     funny:
       - id: costume_funny_001
         text: "Is that a banana? That's the most terrifying thing I've seen all night. And I've seen sea serpents."
@@ -411,6 +735,21 @@ voice_lines:
         tags: [hot_dog, food, funny]
         emotion: amused
 
+      - id: costume_funny_005
+        text: "A ceiling fan! Ye really went above and beyond with that one!"
+        tags: [pun, funny]
+        emotion: amused
+
+      - id: costume_funny_006
+        text: "A garden gnome! I'd put ye on me ship, but ye'd blend in with the barnacles!"
+        tags: [gnome, funny]
+        emotion: amused
+
+      - id: costume_funny_007
+        text: "A salt shaker! At last, a kindred spirit from the sea itself!"
+        tags: [food, funny]
+        emotion: happy
+
     sports:
       - id: costume_sport_001
         text: "An athlete! I could use someone with yer stamina for scrubbin' the deck!"
@@ -421,6 +760,11 @@ voice_lines:
         text: "A boxer! I'd challenge ye to a round, but I fight dirty. Pirate's privilege."
         tags: [boxer, fighter, wrestling]
         emotion: amused
+
+      - id: costume_sport_003
+        text: "A football player! With arms like that, ye could row me ship across the Atlantic!"
+        tags: [football, sports]
+        emotion: impressed
 
     fantasy:
       - id: costume_fantasy_001
@@ -437,6 +781,16 @@ voice_lines:
         text: "A creature of legend! The kind of thing ye only see on the strangest voyages!"
         tags: [fantasy, mythical]
         emotion: impressed
+
+      - id: costume_fantasy_004
+        text: "A centaur! Half human, half horse, all legend! I bet ye run a tight ship!"
+        tags: [centaur, fantasy]
+        emotion: amused
+
+      - id: costume_fantasy_005
+        text: "A fairy princess with glitter! I don't do glitter, but on ye it works!"
+        tags: [fairy, princess, glitter]
+        emotion: happy
 
     color:
       - id: costume_color_red_001
@@ -996,14 +1350,277 @@ voice_lines:
         tags: [pun, humor]
         emotion: amused
 
+  comebacks:
+    kids:
+      - id: comeback_kid_001
+        text: "Oh, ye think ye're tough? I once fought a squid with nothin' but a spoon!"
+        tags: [tease, brave]
+        emotion: amused
+
+      - id: comeback_kid_002
+        text: "That's a mighty big attitude fer someone collectin' free candy!"
+        tags: [tease, attitude]
+        emotion: amused
+
+      - id: comeback_kid_003
+        text: "Ye talk like a captain, but where's yer ship, eh?"
+        tags: [tease, sassy]
+        emotion: happy
+
+      - id: comeback_kid_004
+        text: "Careful, me hearty, or I'll put ye to work swabbin' the deck!"
+        tags: [tease, work]
+        emotion: menacing
+
+      - id: comeback_kid_005
+        text: "Ye've got a sharp tongue! Ye'd make a fine pirate lawyer, if such a thing existed!"
+        tags: [tease, clever]
+        emotion: amused
+
+      - id: comeback_kid_006
+        text: "Aye, keep yer chin up. The plank extends that way if ye'd prefer!"
+        tags: [tease, plank]
+        emotion: menacing
+
+    silent:
+      - id: comeback_silent_001
+        text: "Cat got yer tongue? Or did the kraken take it?"
+        tags: [silent, shy]
+        emotion: curious
+
+      - id: comeback_silent_002
+        text: "No words? That's all right, the candy speaks fer itself!"
+        tags: [silent, shy]
+        emotion: happy
+
+      - id: comeback_silent_003
+        text: "Shy one, are ye? The sea was silent too, before I conquered it!"
+        tags: [silent, shy]
+        emotion: amused
+
+    greedy:
+      - id: comeback_greedy_001
+        text: "Easy there, treasure hunter! Leave some plunder fer the rest of the crew!"
+        tags: [greedy, candy]
+        emotion: amused
+
+      - id: comeback_greedy_002
+        text: "One handful, not the whole chest! A pirate's got to share!"
+        tags: [greedy, candy]
+        emotion: menacing
+
+      - id: comeback_greedy_003
+        text: "Ye've got the makings of a fine pirate, but even we have rules!"
+        tags: [greedy, candy]
+        emotion: amused
+
+    parents:
+      - id: comeback_parent_001
+        text: "Don't worry, I only steal hearts and candy, never children!"
+        tags: [parent, reassuring]
+        emotion: happy
+
+      - id: comeback_parent_002
+        text: "Standin' back, are ye? Smart. The captain's charm is contagious!"
+        tags: [parent, tease]
+        emotion: amused
+
+      - id: comeback_parent_003
+        text: "A fine first mate ye've got there! Ye must be proud as a peacock on the poop deck!"
+        tags: [parent, praise]
+        emotion: happy
+
+      - id: comeback_parent_004
+        text: "No need to be frightened, grown one. I gave up pillagin' villages ages ago!"
+        tags: [parent, reassuring]
+        emotion: amused
+
+    hecklers:
+      - id: comeback_heckle_001
+        text: "Ye dare heckle a captain? Me crew would have made ye swab the bilge!"
+        tags: [heckle, sassy]
+        emotion: grumpy
+
+      - id: comeback_heckle_002
+        text: "Keep that up and I'll put ye on watch duty in the crow's nest!"
+        tags: [heckle, sassy]
+        emotion: menacing
+
+      - id: comeback_heckle_003
+        text: "A silver tongue on a young one! Ye'd fetch a fine price in Tortuga!"
+        tags: [heckle, tease]
+        emotion: amused
+
+      - id: comeback_heckle_004
+        text: "Harsh words! Did a seagull teach ye to speak?"
+        tags: [heckle, sassy]
+        emotion: amused
+
+      - id: comeback_heckle_005
+        text: "I'll let that slide. A good captain knows when to show mercy. This time."
+        tags: [heckle, mercy]
+        emotion: menacing
+
+    costume_related:
+      - id: comeback_costume_001
+        text: "That's not scary! The scariest thing on this porch is me dental hygiene!"
+        tags: [self_deprecating, tease]
+        emotion: amused
+
+      - id: comeback_costume_002
+        text: "Ye call that a costume? I've seen barnacles with more effort!"
+        tags: [tease, lazy]
+        emotion: grumpy
+
+      - id: comeback_costume_003
+        text: "Is that a bedsheet ghost? That's retro, I respect it!"
+        tags: [tease, classic]
+        emotion: amused
+
+      - id: comeback_costume_004
+        text: "A pirate, are ye? Ye make a fine deckhand, but the captain's hat is mine!"
+        tags: [pirate, tease]
+        emotion: happy
+
+      - id: comeback_costume_005
+        text: "Nice try, but ye'd never survive the kraken with that outfit!"
+        tags: [tease, costume]
+        emotion: amused
+
+  pranks_mischief:
+    fake_out:
+      - id: prank_fake_001
+        text: "Oho, tryin' to scare ME? I've been dead inside fer centuries!"
+        tags: [fake_out, jump_scare]
+        emotion: menacing
+
+      - id: prank_fake_002
+        text: "Ye thought ye got me? I don't startle, I merely pretend fer politeness!"
+        tags: [fake_out, jump_scare]
+        emotion: amused
+
+      - id: prank_fake_003
+        text: "Nice try, but I've faced cannon fire. A boo from ye is a spring breeze!"
+        tags: [fake_out, jump_scare]
+        emotion: amused
+
+    tp_throw:
+      - id: prank_tp_001
+        text: "Toilet paper? In me day we used the ship's flag! Much more dramatic!"
+        tags: [tp, prank]
+        emotion: amused
+
+      - id: prank_tp_002
+        text: "Throwin' paper at a portrait? Bold! But I can't catch it, can I?"
+        tags: [tp, prank]
+        emotion: amused
+
+      - id: prank_tp_003
+        text: "Ye missed! Or maybe ye didn't. Hard to tell with ghosts."
+        tags: [tp, prank]
+        emotion: amused
+
+  prop_reactions:
+    candy_bowl:
+      - id: prop_candy_001
+        text: "Take yer pick from the treasure chest! But remember, the captain is watchin'!"
+        tags: [candy, treasure]
+        emotion: happy
+
+      - id: prop_candy_002
+        text: "Only one piece, ye say? I never agreed to that!"
+        tags: [candy, tease]
+        emotion: amused
+
+      - id: prop_candy_003
+        text: "Help yerself! Candy is the true treasure of the night!"
+        tags: [candy, generous]
+        emotion: happy
+
+    fog_machine:
+      - id: prop_fog_001
+        text: "Ah, fog! Reminds me of sailin' through the mists of the Bermuda Triangle!"
+        tags: [fog, atmosphere]
+        emotion: dramatic
+
+      - id: prop_fog_002
+        text: "The fog rolls in! Perfect cover for a sneaky pirate!"
+        tags: [fog, atmosphere]
+        emotion: menacing
+
+    thunder_sound:
+      - id: prop_thunder_001
+        text: "Thunder! The gods themselves applaud me performance!"
+        tags: [thunder, dramatic]
+        emotion: dramatic
+
+      - id: prop_thunder_002
+        text: "A storm brews! Just like the night I lost me ship. Let's not dwell on that."
+        tags: [thunder, story]
+        emotion: dramatic
+
+  reactions:
+    too_cute:
+      - id: react_cute_001
+        text: "By the powers! Ye're so cute ye could melt the heart of Davy Jones himself!"
+        tags: [cute, adorable]
+        emotion: happy
+
+      - id: react_cute_002
+        text: "Stop it! That level of adorable should be illegal on the high seas!"
+        tags: [cute, adorable]
+        emotion: happy
+
+      - id: react_cute_003
+        text: "If I weren't a ghost of a pirate, I'd sweep ye up and give ye a hug!"
+        tags: [cute, adorable]
+        emotion: happy
+
+    too_scary:
+      - id: react_scary_001
+        text: "Blast! Ye nearly made this old pirate jump out of his boots!"
+        tags: [scary, jump_scare]
+        emotion: surprised
+
+      - id: react_scary_002
+        text: "Shiver me timbers! Keep that up and I'll make ye me new first mate out of fear!"
+        tags: [scary, jump_scare]
+        emotion: surprised
+
+      - id: react_scary_003
+        text: "I haven't been that startled since the kraken sneezed on me ship!"
+        tags: [scary, jump_scare]
+        emotion: surprised
+
+    impressed:
+      - id: react_impressed_001
+        text: "Magnificent! Ye put more effort into that than I put into me entire naval career!"
+        tags: [praise, impressed]
+        emotion: impressed
+
+      - id: react_impressed_002
+        text: "I'm actually speechless. And that never happens. Ask anyone!"
+        tags: [praise, impressed]
+        emotion: impressed
+
+      - id: react_impressed_003
+        text: "Ye've earned the Captain's respect. That's rarer than a mermaid's tear!"
+        tags: [praise, impressed]
+        emotion: impressed
+
+
 # Metadata
 metadata:
-  version: "2.1"
-  total_lines: 188
-  last_updated: "2026-03-04"
+  version: "2.2"
+  total_lines: 305
+  last_updated: "2026-07-26"
   categories:
     - greetings
     - costume_reactions
+    - comebacks
+    - pranks_mischief
+    - prop_reactions
+    - reactions
     - farewells
     - idle
     - fallbacks
