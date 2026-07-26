@@ -135,11 +135,24 @@ class PirateBot:
 
         await self._setup_parrotts()
 
-        self.avatar = GodotAvatarController(
-            host=self.config["avatar"]["host"],
-            port=self.config["avatar"]["port"],
-        )
-        await self.avatar.connect()
+        # Choose avatar backend: portrait (browser-based 2D) or Godot 3D.
+        portrait_config = self.config.get("portrait")
+        if portrait_config:
+            from services.portrait_avatar import PortraitAvatarController
+            self.avatar = PortraitAvatarController(
+                host=portrait_config.get("host", "localhost"),
+                port=portrait_config.get("port", 9877),
+                assets_dir=portrait_config.get("assets_dir", "portrait_viewer"),
+                visemes_dir=portrait_config.get("visemes_dir", "data/parrotts_cache"),
+            )
+            await self.avatar.connect()
+        else:
+            from services.godot_avatar import GodotAvatarController
+            self.avatar = GodotAvatarController(
+                host=self.config["avatar"]["host"],
+                port=self.config["avatar"]["port"],
+            )
+            await self.avatar.connect()
 
         self._setup_webcam()
 
