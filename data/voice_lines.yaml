@@ -34,7 +34,7 @@ voice_lines:
 
       - id: greet_004
         text: "Shiver me timbers! Another visitor to me haunted shores!"
-        tags: [welcome, prop:thunder.clap, prop:strobe.flash]
+        tags: [welcome, prop:effects.thunder.clap, prop:effects.strobe.flash]
         emotion: surprised
 
       - id: greet_005
@@ -44,7 +44,7 @@ voice_lines:
 
       - id: greet_006
         text: "Step forward, if ye dare! Captain Barnacle Bill demands an audience!"
-        tags: [challenge, dramatic, prop:smoke.burst]
+        tags: [challenge, dramatic, prop:effects.smoke.burst]
         emotion: dramatic
 
       - id: greet_007
@@ -64,7 +64,7 @@ voice_lines:
 
       - id: greet_010
         text: "The night grows dark and full of terrors, and yet here ye stand! I admire that."
-        tags: [welcome, dramatic, prop:fog.thick]
+        tags: [welcome, dramatic, prop:effects.fog.thick]
         emotion: impressed
 
       - id: greet_011
@@ -154,7 +154,7 @@ voice_lines:
     scary:
       - id: costume_scary_001
         text: "Shiver me timbers! A fearsome vampire! Don't be bitin' me crew!"
-        tags: [vampire, prop:thunder.clap, prop:strobe.flash]
+        tags: [vampire, prop:effects.thunder.clap, prop:effects.strobe.flash]
         emotion: surprised
 
       - id: costume_scary_002
@@ -174,12 +174,12 @@ voice_lines:
 
       - id: costume_scary_005
         text: "A werewolf! Keep yer claws off me treasure, ye furry beast!"
-        tags: [werewolf, monster, prop:thunder.clap, prop:strobe.flash]
+        tags: [werewolf, monster, prop:effects.thunder.clap, prop:effects.strobe.flash]
         emotion: surprised
 
       - id: costume_scary_006
         text: "A demon, is it? I've made bargains with worse, I assure ye."
-        tags: [demon, devil, prop:smoke.burst]
+        tags: [demon, devil, prop:effects.smoke.burst]
         emotion: menacing
 
       - id: costume_scary_007
@@ -530,7 +530,7 @@ voice_lines:
 
       - id: costume_magic_004
         text: "Sorcery! I've seen curses that would make yer spells look like parlor tricks!"
-        tags: [wizard, witch, magic, prop:smoke.burst]
+        tags: [wizard, witch, magic, prop:effects.smoke.burst]
         emotion: menacing
 
       - id: costume_magic_005
@@ -1056,7 +1056,7 @@ voice_lines:
     dramatic:
       - id: farewell_dramatic_001
         text: "Remember this night, for ye stood before Captain Barnacle Bill and lived to tell the tale!"
-        tags: [dramatic, memorable, prop:fog.thick]
+        tags: [dramatic, memorable, prop:effects.fog.thick]
         emotion: dramatic
 
       - id: farewell_dramatic_002
@@ -1183,7 +1183,7 @@ voice_lines:
 
       - id: idle_atmo_002
         text: "I can feel it in me bones... there be mischief in the air tonight!"
-        tags: [atmospheric, spooky, prop:fog.thick]
+        tags: [atmospheric, spooky, prop:effects.fog.thick]
         emotion: menacing
 
       - id: idle_atmo_003
@@ -1369,7 +1369,7 @@ voice_lines:
 
       - id: comeback_kid_004
         text: "Careful, me hearty, or I'll put ye to work swabbin' the deck!"
-        tags: [tease, work, prop:smoke.burst]
+        tags: [tease, work, prop:effects.smoke.burst]
         emotion: menacing
 
       - id: comeback_kid_005
@@ -1438,7 +1438,7 @@ voice_lines:
     hecklers:
       - id: comeback_heckle_001
         text: "Ye dare heckle a captain? Me crew would have made ye swab the bilge!"
-        tags: [heckle, sassy, prop:smoke.burst]
+        tags: [heckle, sassy, prop:effects.smoke.burst]
         emotion: grumpy
 
       - id: comeback_heckle_002
@@ -1579,12 +1579,12 @@ voice_lines:
     too_scary:
       - id: react_scary_001
         text: "Blast! Ye nearly made this old pirate jump out of his boots!"
-        tags: [scary, jump_scare, prop:thunder.clap, prop:strobe.flash]
+        tags: [scary, jump_scare, prop:effects.thunder.clap, prop:effects.strobe.flash]
         emotion: surprised
 
       - id: react_scary_002
         text: "Shiver me timbers! Keep that up and I'll make ye me new first mate out of fear!"
-        tags: [scary, jump_scare, prop:smoke.burst]
+        tags: [scary, jump_scare, prop:effects.smoke.burst]
         emotion: surprised
 
       - id: react_scary_003

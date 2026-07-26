@@ -1,0 +1,11 @@
+id: smoke_prop_01
+transport: websocket
+broker: ws://192.168.0.50:9001/ws
+pins:
+  relay: 4
+subscriptions:
+  - effects.smoke.burst
+  - effects.fog.thick
+capabilities:
+  - effects.smoke.burst
+  - effects.fog.thick

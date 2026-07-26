@@ -1,17 +1,14 @@
 """
 Prop Mesh — event bus for PirateBot and distributed Halloween props.
 
-The portrait (and later other components) can emit events like
-`smoke.burst`, `thunder.clap`, or `strobe.flash`. Other props on the
-same WiFi network — ESP32s, Raspberry Pi Zeros, relay boards — can
-subscribe to these events over WebSocket (or a shared MQTT broker) and
-trigger fog machines, strobes, servos, audio, etc.
+This module implements the PirateBot side of the prop mesh protocol
+defined in props/PROTOCOL.md. It speaks JSON over WebSocket and can
+operate as a server (hosting the mesh), a client (connecting to a
+broker), or both.
 
-Design goals:
-- Simple JSON protocol any microcontroller can speak.
-- Decoupled: any prop can emit or listen; no central controller required.
-- Works as server (PirateBot hosts the mesh) or client (PirateBot joins
-  an existing broker).
+The protocol envelope uses `topic` rather than `type` so it aligns with
+the reference broker in props/broker/ and the shared client library in
+props/lib/.
 """
 
 from __future__ import annotations
@@ -20,8 +17,7 @@ import asyncio
 import json
 import logging
 import time
-from dataclasses import dataclass, asdict
-from pathlib import Path
+from dataclasses import dataclass, asdict, field
 from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -31,10 +27,12 @@ logger = logging.getLogger(__name__)
 class PropEvent:
     """A single event on the prop mesh."""
 
-    type: str               # e.g. "smoke.burst", "thunder.clap"
+    topic: str              # e.g. "effects.thunder.clap"
     source: str             # e.g. "piratebot", "fog_machine_01"
     target: Optional[str]   # optional specific target prop; None = broadcast
     payload: dict           # free-form data
+    timing: dict = field(default_factory=dict)
+    meta: dict = field(default_factory=dict)
     timestamp: float = 0.0
 
     def __post_init__(self) -> None:
@@ -49,10 +47,12 @@ class PropEvent:
         try:
             data = json.loads(raw)
             return cls(
-                type=data.get("type", "unknown"),
+                topic=data.get("topic", data.get("type", "unknown")),
                 source=data.get("source", "unknown"),
                 target=data.get("target"),
                 payload=data.get("payload", {}),
+                timing=data.get("timing", {}),
+                meta=data.get("meta", {}),
                 timestamp=data.get("timestamp", time.time()),
             )
         except Exception as exc:
@@ -116,7 +116,7 @@ class PropMeshBus:
     ) -> None:
         """Emit an event to the mesh and local handlers."""
         event = PropEvent(
-            type=event_type,
+            topic=event_type,
             source=self.source,
             target=target,
             payload=payload,
@@ -126,14 +126,14 @@ class PropMeshBus:
 
     async def _dispatch_local(self, event: PropEvent) -> None:
         """Run registered local handlers."""
-        handlers = self._handlers.get(event.type, []) + self._handlers.get("*", [])
+        handlers = self._handlers.get(event.topic, []) + self._handlers.get("*", [])
         for handler in handlers:
             try:
                 result = handler(event)
                 if asyncio.iscoroutine(result):
                     asyncio.create_task(result)
             except Exception as exc:
-                logger.warning(f"Prop mesh handler error for {event.type}: {exc}")
+                logger.warning(f"Prop mesh handler error for {event.topic}: {exc}")
 
     async def _broadcast(self, event: PropEvent) -> None:
         """Send event to all connected WebSocket peers."""
@@ -180,7 +180,7 @@ class PropMeshBus:
                     if msg.type == aiohttp.WSMsgType.TEXT:
                         event = PropEvent.from_json(msg.data)
                         if event:
-                            logger.debug(f"Received from mesh: {event.type}")
+                            logger.debug(f"Received from mesh: {event.topic}")
                             await self._dispatch_local(event)
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         logger.warning(f"Prop ws error: {ws.exception()}")

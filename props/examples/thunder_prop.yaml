@@ -1,0 +1,12 @@
+id: thunder_prop_01
+transport: websocket
+broker: ws://192.168.0.50:9001/ws
+pins:
+  relay: 17
+  audio: "hdmi"
+subscriptions:
+  - effects.thunder.clap
+  - effects.strobe.flash
+capabilities:
+  - effects.thunder.clap
+  - effects.strobe.flash

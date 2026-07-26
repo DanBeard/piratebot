@@ -59,16 +59,17 @@ prop_mesh:
   port: 9001
   # broker_url: "ws://192.168.0.100:9001/ws"  # only needed in client/both mode
   # Auto-triggers map emotions or line tags to prop events.
+  # Topic names follow props/PROTOCOL.md conventions.
   auto_triggers:
-    smoke.burst:
+    effects.smoke.burst:
       - emotion: menacing
-    thunder.clap:
+    effects.thunder.clap:
       - emotion: surprised
       - emotion: angry
-    strobe.flash:
+        delay_ms: 150
+    effects.strobe.flash:
       - emotion: surprised
-      - tag: prop:strobe
-    fog.thick:
+    effects.fog.thick:
       - tag: prop:fog
 
 # Avatar (Portrait WebSocket)

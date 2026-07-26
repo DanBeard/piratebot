@@ -65,41 +65,59 @@ class PropController:
         text: str,
         emotion: str,
         tags: Optional[list[str]] = None,
+        timing: Optional[dict] = None,
     ) -> None:
         """The pirate is about to speak a line. Trigger props accordingly."""
         tags = tags or []
+        timing = timing or {}
         triggers: list[PropEvent] = []
 
         # 1. Explicit prop tags on the voice line.
         for tag in tags:
             if tag.startswith("prop:"):
-                event_type = tag.split(":", 1)[1]
+                topic = tag.split(":", 1)[1]
+                # If user wrote prop:smoke.burst, normalize to effects.smoke.burst.
+                if "." not in topic:
+                    topic = f"effects.{topic}"
                 triggers.append(
                     PropEvent(
-                        type=event_type,
+                        topic=topic,
                         source="piratebot",
                         target=None,
                         payload={"line_id": line_id, "text": text, "emotion": emotion},
+                        timing=timing,
                     )
                 )
 
         # 2. Emotion-based auto triggers from config.
-        for event_type, rules in self.auto_triggers.items():
+        for topic, rules in self.auto_triggers.items():
+            rule_timing = {}
+            matched = False
             for rule in rules:
                 if rule.get("emotion") == emotion:
-                    triggers.append(
-                        PropEvent(
-                            type=event_type,
-                            source="piratebot",
-                            target=None,
-                            payload={"line_id": line_id, "text": text, "emotion": emotion},
-                        )
+                    matched = True
+                    if "delay_ms" in rule:
+                        rule_timing["delay_ms"] = rule["delay_ms"]
+                for tag_rule in rule.get("tag", []):
+                    if tag_rule in tags:
+                        matched = True
+                        if "delay_ms" in rule:
+                            rule_timing["delay_ms"] = rule["delay_ms"]
+            if matched:
+                triggers.append(
+                    PropEvent(
+                        topic=topic,
+                        source="piratebot",
+                        target=None,
+                        payload={"line_id": line_id, "text": text, "emotion": emotion},
+                        timing=rule_timing,
                     )
-                    break  # only emit once per event_type per line
+                )
 
         for event in triggers:
-            logger.info(f"Triggering prop event {event.type} for line {line_id}")
-            await self.mesh.emit(event.type, event.payload)
+            logger.info(f"Triggering prop event {event.topic} for line {line_id}")
+            payload = {**event.payload, "_timing": event.timing}
+            await self.mesh.emit(event.topic, payload)
 
     async def on_idle(self, line_id: str, text: str) -> None:
         """Idle line spoken; low-key ambient prop events only."""
@@ -150,5 +168,6 @@ class PropController:
 
     async def _log_unknown_event(self, event: PropEvent) -> None:
         """Log events that don't have a specific handler."""
-        if not event.type.startswith("pirate."):
-            logger.debug(f"Prop mesh event received: {event.type} from {event.source}")
+        if not event.topic.startswith("pirate."):
+            logger.debug(f"Prop mesh event received: {event.topic} from {event.source}")
+
