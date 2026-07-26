@@ -16,6 +16,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Portrait mode asset generation helpers (Pillow + numpy)
+porch-dev = [
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+]
+
 # Porch/gaming PC runtime (RTX 3080 + cluster parrotts)
 porch = [
     "ultralytics>=8.0.0",
