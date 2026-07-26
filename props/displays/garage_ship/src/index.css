@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, sans-serif;
+}
+
+.ship-scene {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #0b1026 0%, #1a2342 60%, #2d1b0f 100%);
+}
+
+.ship {
+  position: absolute;
+  bottom: 8%;
+  left: 8%;
+  width: 320px;
+  height: 240px;
+  background: #3d2817;
+  border-radius: 40% 60% 50% 50%;
+  box-shadow: inset -40px 0 60px rgba(0,0,0,0.6);
+}
+
+.ship::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  right: -20px;
+  height: 40px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 50%;
+  filter: blur(10px);
+}
+
+.mast {
+  position: absolute;
+  bottom: 60%;
+  left: 50%;
+  width: 8px;
+  height: 180px;
+  background: #4a3728;
+  transform: translateX(-50%);
+}
+
+.sail {
+  position: absolute;
+  bottom: 80%;
+  left: 50%;
+  width: 120px;
+  height: 140px;
+  background: #d6cfc2;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  transform: translateX(-50%);
+  opacity: 0.9;
+}
+
+.cannonball {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffdd88, #e85d04, #6a040f);
+  box-shadow: 0 0 20px #ff8800, 0 0 40px #ff4400;
+  opacity: 0;
+}
+
+.smoke {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,200,200,0.8) 0%, rgba(100,100,100,0.2) 60%, transparent 100%);
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+}
