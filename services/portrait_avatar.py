@@ -73,12 +73,15 @@ class PortraitAvatarController(IAvatarController):
         port: int = 9877,
         assets_dir: Union[str, Path] = "portrait_viewer",
         visemes_dir: Union[str, Path] = "data/parrotts_cache",
+        asset_set: str = "default",
     ):
         self.host = host
         self.port = port
         self.assets_dir = Path(assets_dir)
         self.visemes_dir = Path(visemes_dir)
         self.visemes_dir.mkdir(parents=True, exist_ok=True)
+        self.asset_set = asset_set
+        self.asset_dir = self.assets_dir / "assets" / asset_set
 
         self._server: Optional[asyncio.Task] = None
         self._clients: set[Any] = set()
@@ -112,8 +115,16 @@ class PortraitAvatarController(IAvatarController):
         async def index_handler(request: web.Request) -> web.FileResponse:
             return web.FileResponse(self.assets_dir / "index.html")
 
+        async def config_handler(request: web.Request) -> web.Response:
+            """Expose active asset set so the browser can load the right manifest."""
+            return web.json_response({
+                "asset_set": self.asset_set,
+                "manifest_url": f"/assets/{self.asset_set}/manifest.json",
+            })
+
         app = web.Application()
         app.router.add_get("/ws", websocket_handler)
+        app.router.add_get("/config.json", config_handler)
         app.router.add_static(
             "/audio/",
             path=str(self.visemes_dir.parent / "parrotts_cache"),

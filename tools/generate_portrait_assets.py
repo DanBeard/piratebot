@@ -2,19 +2,21 @@
 """Generate placeholder portrait assets for PirateBot portrait mode.
 
 This creates crude but functional PNG layers in
-`portrait_viewer/assets/` so you can test the portrait player before
-investing time in hand-crafted art. The generated pirate is a stylized
-skeleton with simple geometric mouth/eye shapes.
+`portrait_viewer/assets/<set>/` so you can test the portrait player
+before investing time in hand-crafted art. The generated pirate is a
+stylized human (non-skeleton) pirate captain.
 
 For a real show, replace these with AI-generated / hand-painted assets.
 
 Usage:
-    uv run python tools/generate_portrait_assets.py --output portrait_viewer/assets
+    uv run python tools/generate_portrait_assets.py --output portrait_viewer/assets --set default
+    uv run python tools/generate_portrait_assets.py --output portrait_viewer/assets --set captain_bob
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -24,15 +26,40 @@ from PIL import Image, ImageDraw, ImageFilter
 ASSET_NAMES = {
     "background",
     "body",
+    "head",
     "mouth_rest",
     "mouth_ah",
     "mouth_ee",
     "mouth_oh",
     "mouth_f",
+    "eye_left",
+    "eye_right",
+    "pupil",
 }
 
 WIDTH = 1280
 HEIGHT = 720
+
+# Layer layout shared with the browser player.
+LAYOUT = {
+    "canvas": {"width": WIDTH, "height": HEIGHT},
+    "layers": ["background", "body", "head", "mouth", "eyes"],
+    "head": {
+        "center_x": 0.5,
+        "center_y": 0.48,
+        "width": 0.50,
+    },
+    "mouth": {
+        "center_x": 0.5,
+        "center_y": 0.59,
+        "width": 0.18,
+    },
+    "eyes": {
+        "left": {"center_x": 0.43, "center_y": 0.43, "width": 0.075, "height": 0.050},
+        "right": {"center_x": 0.57, "center_y": 0.43, "width": 0.075, "height": 0.050},
+    },
+    "pupil": {"width": 0.028, "height": 0.038},
+}
 
 
 def _transparency() -> Image.Image:
@@ -106,6 +133,7 @@ def generate_background() -> Image.Image:
 
 
 def generate_body() -> Image.Image:
+    """Torso, shoulders, coat, collar — no head."""
     img = _transparency()
     draw = ImageDraw.Draw(img)
 
@@ -125,7 +153,7 @@ def generate_body() -> Image.Image:
         fill=coat_color,
     )
 
-    # collar
+    # collar / shirt
     draw.polygon(
         [
             (cx - 80, cy - 10),
@@ -137,34 +165,19 @@ def generate_body() -> Image.Image:
         fill=(50, 55, 70, 230),
     )
 
-    # skull head
-    head_color = (220, 215, 205, 255)
-    head_box = [cx - 110, cy - 230, cx + 110, cy + 30]
-    draw.ellipse(head_box, fill=head_color)
+    # painting texture overlay
+    img = Image.alpha_composite(img, _noise_overlay(WIDTH, HEIGHT, intensity=8))
+    return img
 
-    # jaw
-    jaw_box = [cx - 80, cy - 20, cx + 80, cy + 90]
-    draw.ellipse(jaw_box, fill=head_color)
 
-    # cheek hollows
-    draw.ellipse([cx - 95, cy - 80, cx - 45, cy - 30], fill=(180, 170, 160, 180))
-    draw.ellipse([cx + 45, cy - 80, cx + 95, cy - 30], fill=(180, 170, 160, 180))
+def generate_head() -> Image.Image:
+    """Human pirate head with skin, hat, hair — no separate eyes/mouth cutouts."""
+    img = _transparency()
+    draw = ImageDraw.Draw(img)
 
-    # nose hole
-    draw.polygon(
-        [(cx, cy - 55), (cx - 12, cy - 35), (cx + 12, cy - 35)],
-        fill=(30, 25, 25, 220),
-    )
+    cx, cy = WIDTH // 2, int(HEIGHT * 0.55)
 
-    # empty eye sockets (we'll overlay animated eyes)
-    draw.ellipse([cx - 75, cy - 110, cx - 30, cy - 70], fill=(20, 15, 15, 240))
-    draw.ellipse([cx + 30, cy - 110, cx + 75, cy - 70], fill=(20, 15, 15, 240))
-
-    # eyebrows
-    draw.arc([cx - 85, cy - 135, cx - 20, cy - 95], 200, 340, fill=(60, 50, 45, 220), width=5)
-    draw.arc([cx + 20, cy - 135, cx + 85, cy - 95], 200, 340, fill=(60, 50, 45, 220), width=5)
-
-    # tricorn hat
+    # --- tricorn hat (behind hair/head) ---
     hat_color = (40, 35, 30, 240)
     draw.polygon(
         [
@@ -180,77 +193,129 @@ def generate_body() -> Image.Image:
     )
     draw.ellipse([cx - 120, cy - 200, cx + 120, cy - 160], fill=hat_color)
 
-    # scraggly hair
-    hair_color = (180, 170, 150, 180)
-    for dx in range(-90, 91, 20):
+    # --- scraggly hair behind ears ---
+    hair_color = (140, 115, 80, 200)
+    for dx in range(-110, 111, 22):
         x = cx + dx
-        y = cy - 210
-        draw.line([(x, y), (x + np.random.randint(-15, 15), y + 40)], fill=hair_color, width=3)
+        y = cy - 205
+        draw.line(
+            [(x, y), (x + np.random.randint(-18, 18), y + 45)],
+            fill=hair_color,
+            width=4,
+        )
 
-    # earring
-    draw.ellipse([cx + 108, cy - 70, cx + 122, cy - 50], fill=(220, 200, 80, 230))
-    draw.line([(cx + 115, cy - 50), (cx + 115, cy - 20)], fill=(220, 200, 80, 230), width=3)
+    # --- ears ---
+    skin_dark = (185, 145, 115, 240)
+    draw.ellipse([cx - 128, cy - 105, cx - 98, cy - 55], fill=skin_dark)
+    draw.ellipse([cx + 98, cy - 105, cx + 128, cy - 55], fill=skin_dark)
 
-    # painting texture overlay
+    # --- head shape (weathered skin) ---
+    head_color = (210, 170, 135, 255)
+    head_box = [cx - 110, cy - 205, cx + 110, cy + 15]
+    draw.ellipse(head_box, fill=head_color)
+
+    # jaw/chin
+    jaw_box = [cx - 82, cy - 15, cx + 82, cy + 78]
+    draw.ellipse(jaw_box, fill=head_color)
+
+    # --- facial features ---
+    # nose
+    draw.polygon(
+        [(cx, cy - 70), (cx - 14, cy - 45), (cx + 14, cy - 45)],
+        fill=(190, 140, 110, 240),
+    )
+    draw.arc([cx - 18, cy - 52, cx + 18, cy - 30], 200, 340, fill=(160, 120, 95, 200), width=4)
+
+    # brow ridge shadows
+    draw.arc([cx - 88, cy - 125, cx - 18, cy - 95], 200, 340, fill=(170, 130, 100, 180), width=8)
+    draw.arc([cx + 18, cy - 125, cx + 88, cy - 95], 200, 340, fill=(170, 130, 100, 180), width=8)
+
+    # bushy eyebrows
+    brow_color = (110, 85, 60, 220)
+    draw.arc([cx - 85, cy - 138, cx - 20, cy - 100], 200, 340, fill=brow_color, width=10)
+    draw.arc([cx + 20, cy - 138, cx + 85, cy - 100], 200, 340, fill=brow_color, width=10)
+
+    # closed/neutral eye creases (eye-white sprites go on top)
+    draw.arc([cx - 75, cy - 98, cx - 28, cy - 72], 200, 340, fill=(170, 130, 100, 160), width=3)
+    draw.arc([cx + 28, cy - 98, cx + 75, cy - 72], 200, 340, fill=(170, 130, 100, 160), width=3)
+
+    # cheeks (rosy/tipsy)
+    draw.ellipse([cx - 95, cy - 55, cx - 50, cy - 25], fill=(200, 130, 110, 90))
+    draw.ellipse([cx + 50, cy - 55, cx + 95, cy - 25], fill=(200, 130, 110, 90))
+
+    # scar across left cheek
+    draw.line([(cx - 80, cy - 45), (cx - 35, cy - 20)], fill=(140, 90, 80, 150), width=3)
+
+    # stubble
+    stubble = (150, 120, 95, 80)
+    for dx in range(-70, 71, 8):
+        for dy in range(5, 60, 8):
+            draw.point((cx + dx, cy + dy), fill=stubble)
+
+    # closed mouth crease
+    draw.line(
+        [(cx - 45, cy + 28), (cx + 45, cy + 28)],
+        fill=(155, 110, 95, 180),
+        width=4,
+    )
+
+    # --- earring ---
+    draw.ellipse([cx + 108, cy - 65, cx + 122, cy - 45], fill=(220, 200, 80, 230))
+    draw.line([(cx + 115, cy - 45), (cx + 115, cy - 15)], fill=(220, 200, 80, 230), width=3)
+
+    # --- painting texture overlay ---
     img = Image.alpha_composite(img, _noise_overlay(WIDTH, HEIGHT, intensity=8))
     return img
 
 
 def _mouth_box(cx: int, cy: int) -> tuple[int, int, int, int]:
-    return (cx - 50, cy + 10, cx + 50, cy + 55)
+    # Smaller, lip-only region so the sprite can overlay the closed mouth on head.png
+    return (cx - 45, cy + 20, cx + 45, cy + 55)
 
 
 def generate_mouth(shape: str) -> Image.Image:
+    """Mouth sprite only; everything outside the lips is transparent."""
     img = _transparency()
     draw = ImageDraw.Draw(img)
     cx, cy = WIDTH // 2, int(HEIGHT * 0.55)
     box = _mouth_box(cx, cy)
 
-    # dark mouth cavity behind lips
-    draw.ellipse(box, fill=(30, 20, 20, 200))
-
-    lip_color = (165, 140, 130, 230)
-    inner_color = (90, 50, 50, 220)
+    lip_color = (175, 120, 105, 230)
+    inner_color = (90, 45, 45, 220)
+    teeth_color = (230, 225, 215, 230)
 
     if shape == "rest":
-        # thin closed line
         draw.line(
-            [(box[0] + 10, (box[1] + box[3]) // 2), (box[2] - 10, (box[1] + box[3]) // 2)],
+            [(box[0] + 8, (box[1] + box[3]) // 2), (box[2] - 8, (box[1] + box[3]) // 2)],
             fill=lip_color,
             width=6,
         )
     elif shape == "ah":
-        # big open oval
         draw.ellipse(box, outline=lip_color, width=6)
         draw.ellipse(
-            [box[0] + 12, box[1] + 12, box[2] - 12, box[3] - 12],
+            [box[0] + 10, box[1] + 10, box[2] - 10, box[3] - 10],
             fill=inner_color,
         )
     elif shape == "ee":
-        # wide stretched grin
-        grin_box = [box[0] - 10, box[1] + 5, box[2] + 10, box[3] - 5]
+        grin_box = [box[0] - 10, box[1] + 2, box[2] + 10, box[3] - 2]
         draw.arc(grin_box, 0, 180, fill=lip_color, width=6)
-        draw.arc(
-            [grin_box[0] + 8, grin_box[1] + 8, grin_box[2] - 8, grin_box[3] - 8],
-            0,
-            180,
-            fill=inner_color,
-            width=4,
+        draw.line(
+            [(box[0] + 6, box[1] + 6), (box[2] - 6, box[1] + 6)],
+            fill=teeth_color,
+            width=5,
         )
     elif shape == "oh":
-        # small round "o"
-        oh_box = [cx - 25, cy + 15, cx + 25, cy + 55]
+        oh_box = [cx - 22, cy + 22, cx + 22, cy + 55]
         draw.ellipse(oh_box, outline=lip_color, width=6)
         draw.ellipse(
-            [oh_box[0] + 8, oh_box[1] + 8, oh_box[2] - 8, oh_box[3] - 8],
+            [oh_box[0] + 7, oh_box[1] + 7, oh_box[2] - 7, oh_box[3] - 7],
             fill=inner_color,
         )
     elif shape == "f":
-        # bottom lip under teeth
-        teeth_box = [box[0] + 5, box[1] + 5, box[2] - 5, box[1] + 20]
-        draw.rectangle(teeth_box, fill=(230, 230, 220, 230))
+        teeth_box = [box[0] + 4, box[1] + 4, box[2] - 4, box[1] + 16]
+        draw.rectangle(teeth_box, fill=teeth_color)
         draw.line(
-            [(box[0] + 5, box[3] - 5), (box[2] - 5, box[3] - 5)],
+            [(box[0] + 4, box[3] - 2), (box[2] - 4, box[3] - 2)],
             fill=lip_color,
             width=8,
         )
@@ -260,25 +325,25 @@ def generate_mouth(shape: str) -> Image.Image:
 
 
 def generate_eyes() -> tuple[Image.Image, Image.Image]:
-    """Generate optional eye-white images matching the skull sockets."""
+    """Eye-white sprites matching the head's eye sockets."""
     left = _transparency()
     right = _transparency()
     draw_l = ImageDraw.Draw(left)
     draw_r = ImageDraw.Draw(right)
 
     cx, cy = WIDTH // 2, int(HEIGHT * 0.55)
-    eye_w, eye_h = 45, 40
+    eye_w, eye_h = 50, 36
 
     def draw_eye(draw, cx, cy):
         draw.ellipse(
             [cx - eye_w // 2, cy - eye_h // 2, cx + eye_w // 2, cy + eye_h // 2],
-            fill=(240, 230, 215, 230),
-            outline=(30, 25, 25, 120),
+            fill=(245, 235, 220, 240),
+            outline=(80, 60, 50, 120),
             width=2,
         )
 
-    draw_eye(draw_l, cx - 52, cy - 90)
-    draw_eye(draw_r, cx + 52, cy - 90)
+    draw_eye(draw_l, cx - 50, cy - 85)
+    draw_eye(draw_r, cx + 50, cy - 85)
     return left, right
 
 
@@ -298,15 +363,22 @@ def main() -> int:
         default=str(Path(__file__).resolve().parent.parent / "portrait_viewer" / "assets"),
         help="Directory to write PNG assets",
     )
+    parser.add_argument(
+        "--set",
+        default="default",
+        help="Asset set name / subfolder (default: default)",
+    )
     args = parser.parse_args()
 
-    out_dir = Path(args.output)
+    out_dir = Path(args.output) / args.set
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Generating placeholder portrait assets in {out_dir}...")
 
     generate_background().save(out_dir / "background.png")
     generate_body().save(out_dir / "body.png")
+    generate_head().save(out_dir / "head.png")
+    generate_head().save(out_dir / "head.png")
 
     for shape in ("rest", "ah", "ee", "oh", "f"):
         generate_mouth(shape).save(out_dir / f"mouth_{shape}.png")
@@ -315,6 +387,15 @@ def main() -> int:
     left_eye.save(out_dir / "eye_left.png")
     right_eye.save(out_dir / "eye_right.png")
     generate_pupil().save(out_dir / "pupil.png")
+
+    manifest_path = out_dir / "manifest.json"
+    manifest = {
+        "name": args.set,
+        "description": "Placeholder pirate portrait asset set",
+        "layout": LAYOUT,
+        "files": {name: f"assets/{args.set}/{name}.png" for name in sorted(ASSET_NAMES)},
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2))
 
     print("Done. Files:")
     for f in sorted(out_dir.iterdir()):

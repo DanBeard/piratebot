@@ -144,6 +144,7 @@ class PirateBot:
                 port=portrait_config.get("port", 9877),
                 assets_dir=portrait_config.get("assets_dir", "portrait_viewer"),
                 visemes_dir=portrait_config.get("visemes_dir", "data/parrotts_cache"),
+                asset_set=portrait_config.get("asset_set", "default"),
             )
             await self.avatar.connect()
         else:

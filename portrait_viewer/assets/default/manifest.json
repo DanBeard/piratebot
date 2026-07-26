@@ -1,0 +1,58 @@
+{
+  "name": "default",
+  "description": "Placeholder pirate portrait asset set",
+  "layout": {
+    "canvas": {
+      "width": 1280,
+      "height": 720
+    },
+    "layers": [
+      "background",
+      "body",
+      "head",
+      "mouth",
+      "eyes"
+    ],
+    "head": {
+      "center_x": 0.5,
+      "center_y": 0.48,
+      "width": 0.5
+    },
+    "mouth": {
+      "center_x": 0.5,
+      "center_y": 0.59,
+      "width": 0.18
+    },
+    "eyes": {
+      "left": {
+        "center_x": 0.43,
+        "center_y": 0.43,
+        "width": 0.075,
+        "height": 0.05
+      },
+      "right": {
+        "center_x": 0.57,
+        "center_y": 0.43,
+        "width": 0.075,
+        "height": 0.05
+      }
+    },
+    "pupil": {
+      "width": 0.028,
+      "height": 0.038
+    }
+  },
+  "files": {
+    "background": "assets/default/background.png",
+    "body": "assets/default/body.png",
+    "eye_left": "assets/default/eye_left.png",
+    "eye_right": "assets/default/eye_right.png",
+    "head": "assets/default/head.png",
+    "mouth_ah": "assets/default/mouth_ah.png",
+    "mouth_ee": "assets/default/mouth_ee.png",
+    "mouth_f": "assets/default/mouth_f.png",
+    "mouth_oh": "assets/default/mouth_oh.png",
+    "mouth_rest": "assets/default/mouth_rest.png",
+    "pupil": "assets/default/pupil.png"
+  }
+}
