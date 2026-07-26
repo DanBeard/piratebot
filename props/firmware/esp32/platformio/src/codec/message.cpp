@@ -1,42 +1,44 @@
 #include "message.h"
 
-#include <ArduinoJson.hpp>
-
 namespace piratebot {
 
-static void readTiming(JsonObjectConst obj, Timing &t) {
-    if (obj["delay_ms"].is<int>()) {
+static void readTiming(const JsonObject &obj, Timing &t) {
+    if (obj.containsKey("delay_ms")) {
         t.delay_ms = obj["delay_ms"];
         t.has_delay = true;
     }
-    if (obj["at_ts"].is<double>() || obj["at_ts"].is<float>()) {
+    if (obj.containsKey("at_ts")) {
         t.at_ts = obj["at_ts"];
         t.has_at_ts = true;
     }
-    if (obj["expire_ms"].is<int>()) {
+    if (obj.containsKey("expire_ms")) {
         t.expire_ms = obj["expire_ms"];
         t.has_expire = true;
     }
 }
 
-static void writeTiming(JsonObject obj, const Timing &t) {
+static void writeTiming(JsonObject &obj, const Timing &t) {
     if (t.has_delay) obj["delay_ms"] = t.delay_ms;
     if (t.has_at_ts) obj["at_ts"] = t.at_ts;
     if (t.has_expire) obj["expire_ms"] = t.expire_ms;
 }
 
 bool Message::toJson(char *out, size_t out_len) const {
-    JsonDocument doc;
+    StaticJsonDocument<MESH_JSON_BUFFER_SIZE> doc;
     doc["topic"] = topic;
     doc["source"] = source;
     if (target[0] != '\0') doc["target"] = target;
-    doc["payload"].set(payload.as<JsonObjectConst>());
-    JsonObject t = doc["timing"].to<JsonObject>();
+    JsonObject payloadObj = doc.createNestedObject("payload");
+    JsonObjectConst payloadSrc = payload.as<JsonObjectConst>();
+    for (JsonPairConst kv : payloadSrc) {
+        payloadObj[kv.key().c_str()] = kv.value();
+    }
+    JsonObject t = doc.createNestedObject("timing");
     writeTiming(t, timing);
-    JsonObject m = doc["meta"].to<JsonObject>();
+    JsonObject m = doc.createNestedObject("meta");
     m["seq"] = meta.seq;
     m["session"] = meta.session;
-    JsonArray codecs = m["codecs"].to<JsonArray>();
+    JsonArray codecs = m.createNestedArray("codecs");
     codecs.add("json");
     doc["timestamp"] = timestamp;
 
@@ -45,7 +47,7 @@ bool Message::toJson(char *out, size_t out_len) const {
 }
 
 bool Message::fromJson(const char *in) {
-    JsonDocument doc;
+    StaticJsonDocument<MESH_JSON_BUFFER_SIZE> doc;
     DeserializationError err = deserializeJson(doc, in);
     if (err) {
         Serial.printf("JSON parse error: %s\n", err.c_str());
@@ -55,7 +57,10 @@ bool Message::fromJson(const char *in) {
     strlcpy(source, doc["source"] | "", sizeof(source));
     strlcpy(target, doc["target"] | "", sizeof(target));
     payload.clear();
-    payload.set(doc["payload"].as<JsonObjectConst>());
+    JsonObjectConst srcPayload = doc["payload"].as<JsonObjectConst>();
+    for (JsonPairConst kv : srcPayload) {
+        payload[kv.key().c_str()] = kv.value();
+    }
     readTiming(doc["timing"], timing);
     meta.seq = doc["meta"]["seq"] | 0;
     strlcpy(meta.session, doc["meta"]["session"] | MESH_SESSION, sizeof(meta.session));

@@ -26,7 +26,7 @@ struct Message {
     char topic[64] = "";
     char source[32] = MESH_NODE_ID;
     char target[32] = "";
-    JsonDocument payload;
+    StaticJsonDocument<MESH_JSON_BUFFER_SIZE> payload;
     Timing timing;
     Meta meta;
     double timestamp = 0.0;

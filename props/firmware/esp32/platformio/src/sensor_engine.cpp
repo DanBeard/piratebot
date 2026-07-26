@@ -1,7 +1,5 @@
 #include "sensor_engine.h"
 
-#include <ArduinoJson.hpp>
-
 namespace piratebot {
 
 SensorEngine::SensorEngine(SensorCallback cb) : callback_(cb) {
