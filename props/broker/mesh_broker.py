@@ -20,6 +20,7 @@ import aiohttp
 from aiohttp import web
 
 from props.broker.mqtt_bridge import MqttBridge, TopicMapping
+from props.broker.perception_fuser import PerceptionFuser
 from props.broker.z2m_bridge import Z2MBridge, Z2MDevice
 from props.lib.bus import MessageBus
 from props.lib.message import Message
@@ -57,6 +58,7 @@ class MeshBroker:
 
         self.mqtt_bridge: Optional[MqttBridge] = None
         self.z2m_bridge: Optional[Z2MBridge] = None
+        self.fuser: Optional[PerceptionFuser] = None
 
         self.bus = MessageBus()
         self._peers: dict[str, web.WebSocketResponse] = {}
@@ -105,6 +107,19 @@ class MeshBroker:
         if self.mqtt_url:
             await self._start_mqtt_bridges()
 
+        # Start the perception fuser so it drives rules from sensor/tracker input.
+        fuser_path = Path(__file__).parent / "fuser_rules.yaml"
+        if fuser_path.exists():
+            self.fuser = PerceptionFuser.from_yaml(
+                bus=self.bus,
+                path=fuser_path,
+                source_id="perception",
+            )
+            await self.fuser.start()
+            logger.info(f"Perception fuser loaded from {fuser_path}")
+        else:
+            logger.warning(f"Fuser rules not found at {fuser_path}; fuser disabled")
+
     async def _start_mqtt_bridges(self) -> None:
         """Start generic MQTT bridge and optional Z2M bridge."""
         generic_mappings = [
@@ -147,6 +162,8 @@ class MeshBroker:
 
     async def stop(self) -> None:
         self._running = False
+        if self.fuser:
+            await self.fuser.stop()
         if self.mqtt_bridge:
             await self.mqtt_bridge.stop()
         if self.z2m_bridge:

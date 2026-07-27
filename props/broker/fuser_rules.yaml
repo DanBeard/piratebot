@@ -7,10 +7,15 @@
 #   cooldown_ms: minimum time between firings of this rule
 #
 # World-model keys available:
-#   scene, family_mode, audience_present, garage_active, quiet_mode,
-#   world.<zone>.occupied, world.<zone>.vacant,
-#   world.<zone>.linger_s (seconds since first occupied in this visit),
-#   world.<zone>.empty_s (seconds since last occupied).
+#   scene, family_mode, audience_present,
+#   world.<zone>.occupied, world.<zone>.linger_s, world.<zone>.count,
+#   sun_down, late_night,
+#   fog_cooldown, thunder_cooldown, cannon_cooldown,
+#   pumpkins_singing, last_pumpkins_singing,
+#   portrait_speaking,
+#   costume_description,
+#   manual_cannon, manual_pirate_button,
+#   mic_cue.
 #
 # Timing fields:
 #   delay_ms: delay before prop receives the command (useful for cross-prop sync)
@@ -302,8 +307,7 @@ rules:
 
   - name: portrait_goodbye_sideyard
     when:
-      world.sideyard.vacant: true
-      world.sideyard.empty_s: 2
+      world.sideyard.occupied: false
       last_sideyard_occupied: true
     then:
       - topic: pirate.speak
