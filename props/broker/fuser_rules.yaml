@@ -1,0 +1,363 @@
+# PirateBot perception fuser rules — Halloween 2026
+# Loaded by props/broker/perception_fuser.py when the broker starts.
+#
+# Rule shape:
+#   when:  dict of world-model keys -> expected value(s)
+#   then:  list of actions to emit as mesh messages
+#   cooldown_ms: minimum time between firings of this rule
+#
+# World-model keys available:
+#   scene, family_mode, audience_present, garage_active, quiet_mode,
+#   world.<zone>.occupied, world.<zone>.vacant,
+#   world.<zone>.linger_s (seconds since first occupied in this visit),
+#   world.<zone>.empty_s (seconds since last occupied).
+#
+# Timing fields:
+#   delay_ms: delay before prop receives the command (useful for cross-prop sync)
+#   at_ts:    absolute unix timestamp
+#   expire_ms: message is dropped by transport if not delivered in time
+
+rules:
+  # ---------------------------------------------------------------------------
+  # Show schedule / global scene
+  # ---------------------------------------------------------------------------
+  - name: open_show_at_sunset
+    when:
+      scene: closed
+      sun_down: true
+    then:
+      - topic: scene.start
+        payload:
+          scene: idle
+    cooldown_ms: 60000
+
+  - name: close_show_at_end_of_night
+    when:
+      scene:
+        - idle
+        - showtime
+        - quiet
+      late_night: true
+    then:
+      - topic: scene.stop
+        payload: {}
+    cooldown_ms: 60000
+
+  # ---------------------------------------------------------------------------
+  # Family / spooky mode toggle
+  # ---------------------------------------------------------------------------
+  - name: enter_family_mode
+    when:
+      family_mode_request: true
+    then:
+      - topic: scene.family_mode
+        payload:
+          active: true
+          volume_percent: 35
+          disable_cannon: true
+          disable_thunder: true
+    cooldown_ms: 2000
+
+  - name: enter_spooky_mode
+    when:
+      family_mode_request: false
+      last_family_mode: true
+    then:
+      - topic: scene.spooky_mode
+        payload:
+          active: true
+          volume_percent: 100
+          disable_cannon: false
+          disable_thunder: false
+    cooldown_ms: 2000
+
+  # ---------------------------------------------------------------------------
+  # Front-yard atmosphere
+  # ---------------------------------------------------------------------------
+  - name: audience_present_front_or_drive
+    when:
+      world.front_yard.occupied: true
+    then:
+      - topic: world.audience.present
+        payload:
+          zone: front_yard
+    cooldown_ms: 5000
+
+  - name: audience_present_driveway
+    when:
+      world.driveway.occupied: true
+    then:
+      - topic: world.audience.present
+        payload:
+          zone: driveway
+    cooldown_ms: 5000
+
+  - name: audience_present_sideyard
+    when:
+      world.sideyard.occupied: true
+    then:
+      - topic: world.audience.present
+        payload:
+          zone: sideyard
+    cooldown_ms: 5000
+
+  - name: fog_pulse_when_audience
+    when:
+      audience_present: true
+      scene:
+        - idle
+        - showtime
+      family_mode: false
+      fog_cooldown: false
+    then:
+      - topic: effects.fog.pulse
+        payload:
+          duration_ms: 8000
+        timing:
+          delay_ms: 0
+    cooldown_ms: 30000
+
+  - name: random_thunder_front
+    when:
+      audience_present: true
+      scene:
+        - idle
+        - showtime
+      family_mode: false
+      thunder_cooldown: false
+    then:
+      - topic: effects.thunder.clap
+        payload:
+          intensity: medium
+      - topic: effects.strobe.flash
+        payload:
+          duration_ms: 250
+    cooldown_ms: 45000
+
+  # ---------------------------------------------------------------------------
+  # Cannon
+  # ---------------------------------------------------------------------------
+  - name: auto_fire_cannon
+    when:
+      audience_present: true
+      scene:
+        - idle
+        - showtime
+      family_mode: false
+      pumpkins_singing: false
+      cannon_cooldown: false
+      fog_cooldown: false
+    then:
+      - topic: effects.cannon.fire
+        payload:
+          salvo: 1
+        timing:
+          delay_ms: 0
+      - topic: world.garage.start
+        payload:
+          triggered: auto_cannon
+      - topic: effects.thunder.clap
+        payload:
+          intensity: loud
+        timing:
+          delay_ms: 120
+    cooldown_ms: 120000
+
+  - name: manual_cannon_button
+    when:
+      manual_cannon: true
+      family_mode: false
+      cannon_cooldown: false
+    then:
+      - topic: effects.cannon.fire
+        payload:
+          salvo: 1
+      - topic: world.garage.start
+        payload:
+          triggered: manual_button
+    cooldown_ms: 30000
+
+  # ---------------------------------------------------------------------------
+  # Pumpkins
+  # ---------------------------------------------------------------------------
+  - name: auto_sing_pumpkins
+    when:
+      audience_present: true
+      pumpkins_singing: false
+      scene:
+        - idle
+        - showtime
+      family_mode: false
+    then:
+      - topic: scene.pumpkin.sing
+        payload:
+          selection: next_scheduled
+    cooldown_ms: 600000
+
+  - name: manual_skip_pumpkins
+    when:
+      manual_pirate_button: true
+      pumpkins_singing: true
+    then:
+      - topic: scene.pumpkin.sing
+        payload:
+          selection: next
+    cooldown_ms: 5000
+
+  - name: duck_ambient_for_pumpkins
+    when:
+      pumpkins_singing: true
+    then:
+      - topic: audio.duck
+        payload:
+          source: ambient_ship
+          volume_percent: 15
+      - topic: effects.cannon.lockout
+        payload:
+          reason: pumpkins_singing
+    cooldown_ms: 5000
+
+  - name: restore_ambient_after_pumpkins
+    when:
+      pumpkins_singing: false
+      last_pumpkins_singing: true
+    then:
+      - topic: audio.duck
+        payload:
+          source: ambient_ship
+          volume_percent: 100
+      - topic: effects.cannon.lockout
+        payload:
+          reason: pumpkins_singing
+          active: false
+    cooldown_ms: 5000
+
+  # ---------------------------------------------------------------------------
+  # Graveyard / fountain
+  # ---------------------------------------------------------------------------
+  - name: fountain_burble
+    when:
+      scene:
+        - idle
+        - showtime
+    then:
+      - topic: effects.fountain.on
+        payload:
+          intensity: low
+    cooldown_ms: 60000
+
+  # ---------------------------------------------------------------------------
+  # Sideyard portrait
+  # ---------------------------------------------------------------------------
+  - name: portrait_greet_sideyard
+    when:
+      world.sideyard.occupied: true
+      world.sideyard.linger_s:
+        - 0
+        - 1
+        - 2
+      portrait_speaking: false
+    then:
+      - topic: pirate.speak
+        payload:
+          category: greeting
+          interruptible: true
+    cooldown_ms: 15000
+
+  - name: portrait_costume_comment
+    when:
+      world.sideyard.occupied: true
+      world.sideyard.linger_s: 5
+      costume_description: present
+      portrait_speaking: false
+    then:
+      - topic: pirate.speak
+        payload:
+          category: costume_comment
+          interruptible: true
+    cooldown_ms: 30000
+
+  - name: portrait_linger_hint
+    when:
+      world.sideyard.occupied: true
+      world.sideyard.linger_s: 180
+      portrait_speaking: false
+    then:
+      - topic: pirate.speak
+        payload:
+          category: move_along
+          interruptible: true
+    cooldown_ms: 60000
+
+  - name: portrait_linger_alert_director
+    when:
+      world.sideyard.occupied: true
+      world.sideyard.linger_s: 300
+    then:
+      - topic: director.alert
+        payload:
+          severity: info
+          message: "Sideyard visitor has lingered >5 minutes"
+    cooldown_ms: 60000
+
+  - name: portrait_goodbye_sideyard
+    when:
+      world.sideyard.vacant: true
+      world.sideyard.empty_s: 2
+      last_sideyard_occupied: true
+    then:
+      - topic: pirate.speak
+        payload:
+          category: goodbye
+          interruptible: true
+    cooldown_ms: 10000
+
+  # ---------------------------------------------------------------------------
+  # Lapel mic / director cues
+  # ---------------------------------------------------------------------------
+  - name: mic_fire_cannon
+    when:
+      mic_cue: fire_cannon
+      family_mode: false
+      cannon_cooldown: false
+    then:
+      - topic: effects.cannon.fire
+        payload:
+          salvo: 1
+      - topic: world.garage.start
+        payload:
+          triggered: mic_cue
+    cooldown_ms: 30000
+
+  - name: mic_next_pumpkin_song
+    when:
+      mic_cue: pumpkins_sing
+    then:
+      - topic: scene.pumpkin.sing
+        payload:
+          selection: next
+    cooldown_ms: 5000
+
+  - name: mic_toggle_family_mode
+    when:
+      mic_cue: family_mode
+    then:
+      - topic: scene.family_mode.toggle
+        payload: {}
+    cooldown_ms: 2000
+
+  # ---------------------------------------------------------------------------
+  # Stop / resume
+  # ---------------------------------------------------------------------------
+  - name: stop_all
+    when:
+      scene: stop
+    then:
+      - topic: scene.estop
+        payload:
+          reason: show_closed
+      - topic: audio.duck
+        payload:
+          source: all
+          volume_percent: 0
+    cooldown_ms: 1000
