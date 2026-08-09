@@ -23,7 +23,10 @@ from props.broker.mqtt_bridge import MqttBridge, TopicMapping
 from props.broker.perception_fuser import PerceptionFuser
 from props.broker.z2m_bridge import Z2MBridge, Z2MDevice
 from props.lib.bus import MessageBus
-from props.lib.message import Message
+from props.lib.message import Message, Timing
+from services.person_tracker import MockPersonTracker, PersonTracker, ZonePolygon
+from services.prop_mesh import PropMeshBus
+from services.yolo_detector import YoloDetector
 
 logger = logging.getLogger("prop_mesh_broker")
 
@@ -46,6 +49,7 @@ class MeshBroker:
         display_dirs: Optional[dict[str, Path]] = None,
         mqtt_url: Optional[str] = None,
         session: str = "halloween-2026",
+        mock_tracker: Optional[dict[str, Any]] = None,
     ):
         self.host = host
         self.ws_port = ws_port
@@ -55,10 +59,12 @@ class MeshBroker:
         self.display_dirs = display_dirs or {}
         self.mqtt_url = mqtt_url
         self.session = session
+        self.mock_tracker = mock_tracker
 
         self.mqtt_bridge: Optional[MqttBridge] = None
         self.z2m_bridge: Optional[Z2MBridge] = None
         self.fuser: Optional[PerceptionFuser] = None
+        self.tracker: Optional[PersonTracker | MockPersonTracker] = None
 
         self.bus = MessageBus()
         self._peers: dict[str, web.WebSocketResponse] = {}
@@ -104,10 +110,22 @@ class MeshBroker:
 
         self._tasks.append(asyncio.create_task(self._udp_discovery_loop()))
 
+        # Start an optional built-in mock tracker so the show can be tested
+        # without cameras. In production this block is skipped.
+        if self.mock_tracker:
+            mesh = PropMeshBus(source="broker_tracker", mode="server", host=self.host, port=self.ws_port)
+            await mesh.connect()
+            kind = self.mock_tracker.get("kind", "scenario")
+            if kind == "keyboard":
+                self.tracker = MockPersonTracker(mesh=mesh, keyboard=True, source="mock_tracker")
+            else:
+                scenario = Path(self.mock_tracker.get("scenario", "scenarios/mock_arrival.jsonl"))
+                self.tracker = MockPersonTracker(mesh=mesh, scenario_path=scenario, source="mock_tracker")
+            await self.tracker.start()
+            logger.info(f"Built-in mock tracker started ({kind})")
+
         if self.mqtt_url:
             await self._start_mqtt_bridges()
-
-        # Start the perception fuser so it drives rules from sensor/tracker input.
         fuser_path = Path(__file__).parent / "fuser_rules.yaml"
         if fuser_path.exists():
             self.fuser = PerceptionFuser.from_yaml(
@@ -162,6 +180,8 @@ class MeshBroker:
 
     async def stop(self) -> None:
         self._running = False
+        if self.tracker:
+            await self.tracker.stop()
         if self.fuser:
             await self.fuser.stop()
         if self.mqtt_bridge:
@@ -340,12 +360,22 @@ def main() -> int:
     parser.add_argument("--mqtt-url")
     parser.add_argument("--session", default="halloween-2026")
     parser.add_argument("--log-level", default="INFO")
+    parser.add_argument(
+        "--mock-tracker",
+        choices=["keyboard", "scenario"],
+        help="Run a built-in fake person tracker for testing rules without cameras.",
+    )
+    parser.add_argument("--mock-scenario", default="scenarios/mock_arrival.jsonl", help="Scenario file for --mock-tracker=scenario")
     args = parser.parse_args()
 
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
+    mock_tracker = None
+    if args.mock_tracker:
+        mock_tracker = {"kind": args.mock_tracker, "scenario": args.mock_scenario}
 
     broker = MeshBroker(
         host=args.host,
@@ -359,6 +389,7 @@ def main() -> int:
         },
         mqtt_url=args.mqtt_url,
         session=args.session,
+        mock_tracker=mock_tracker,
     )
 
     async def run() -> None:
