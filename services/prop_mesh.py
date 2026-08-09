@@ -14,6 +14,7 @@ props/lib/.
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 import json
 import logging
 import time
@@ -23,6 +24,15 @@ from typing import Any, Callable, Optional
 logger = logging.getLogger(__name__)
 
 
+def _match_topic(pattern: str, topic: str) -> bool:
+    """Match a topic against a pattern supporting * and ** globs."""
+    if pattern == topic:
+        return True
+    if pattern == "*":
+        return True
+    if "**" in pattern or "*" in pattern:
+        return fnmatch.fnmatch(topic, pattern)
+    return False
 @dataclass
 class PropEvent:
     """A single event on the prop mesh."""
@@ -125,8 +135,11 @@ class PropMeshBus:
         await self._broadcast(event)
 
     async def _dispatch_local(self, event: PropEvent) -> None:
-        """Run registered local handlers."""
-        handlers = self._handlers.get(event.topic, []) + self._handlers.get("*", [])
+        """Run registered local handlers. Supports * and prefix.* globs."""
+        handlers: list[Handler] = []
+        for pattern, h in self._handlers.items():
+            if _match_topic(pattern, event.topic):
+                handlers.extend(h)
         for handler in handlers:
             try:
                 result = handler(event)

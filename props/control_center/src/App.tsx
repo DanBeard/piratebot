@@ -1,4 +1,5 @@
 import ConnectionStatus from './components/ConnectionStatus';
+import DirectorPanel from './components/DirectorPanel';
 import EventLog from './components/EventLog';
 import PropGrid from './components/PropGrid';
 import SceneSelector from './components/SceneSelector';
@@ -16,6 +17,7 @@ function App() {
 
       <section className="flex flex-col gap-3">
         <SceneSelector />
+        <DirectorPanel />
         <PropGrid />
       </section>
 

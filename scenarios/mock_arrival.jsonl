@@ -1,0 +1,8 @@
+{"delay_s": 2, "action": "enter", "zone": "sidewalk"}
+{"delay_s": 3, "action": "move", "from": "sidewalk", "zone": "front_yard"}
+{"delay_s": 5, "action": "move", "from": "front_yard", "zone": "driveway"}
+{"delay_s": 8, "action": "enter", "zone": "sideyard"}
+{"delay_s": 15, "action": "leave", "zone": "sideyard"}
+{"delay_s": 5, "action": "leave", "zone": "driveway"}
+{"delay_s": 10, "action": "enter", "zone": "sideyard", "costume_description": "red vampire"}
+{"delay_s": 200, "action": "leave", "zone": "sideyard"}

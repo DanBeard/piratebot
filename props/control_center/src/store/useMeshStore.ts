@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActiveEffect, LogEntry, MeshMessage, PropAnnouncement } from '../types/mesh';
+import type { ActiveEffect, LogEntry, MeshMessage, PropAnnouncement, WorldView } from '../types/mesh';
 
 interface MeshState {
   connected: boolean;
@@ -7,10 +7,12 @@ interface MeshState {
   session: string;
   scene: string;
   estop: boolean;
+  family_mode: boolean;
   manifest: Record<string, PropAnnouncement>;
   activeEffects: Record<string, ActiveEffect>;
   logs: LogEntry[];
   selectedTopics: Set<string>;
+  world: WorldView;
 
   setConnected: (connected: boolean) => void;
   setBrokerUrl: (url: string) => void;
@@ -22,14 +24,37 @@ interface MeshState {
   handleHeartbeat: (source: string, payload: Record<string, unknown>) => void;
   handleEffectStart: (msg: MeshMessage) => void;
   handleEffectEnd: (source: string, topic: string) => void;
+  handleWorldUpdate: (msg: MeshMessage) => void;
   clearLogs: () => void;
   sendMessage: (msg: Omit<MeshMessage, 'timestamp'>) => void;
   fire: (topic: string, payload?: Record<string, unknown>) => void;
   setSceneCommand: (scene: string) => void;
+  toggleFamilyMode: () => void;
+  fireCannon: () => void;
+  nextPumpkinSong: () => void;
+  testPortraitLine: () => void;
 }
 
 let ws: WebSocket | null = null;
 let logIdCounter = 0;
+
+const DEFAULT_ZONES = ['sidewalk', 'front_yard', 'driveway', 'graveyard', 'sideyard'];
+
+function emptyWorld(): WorldView {
+  return {
+    scene: 'idle',
+    family_mode: false,
+    audience_present: false,
+    pumpkins_singing: false,
+    portrait_speaking: false,
+    estop: false,
+    cannon_cooldown: false,
+    fog_cooldown: false,
+    thunder_cooldown: false,
+    linger_alert: false,
+    zones: DEFAULT_ZONES.map((zone) => ({ zone, occupied: false, count: 0, linger_s: 0 })),
+  };
+}
 
 function getBrokerUrl(): string {
   const params = new URLSearchParams(window.location.search);
@@ -53,7 +78,7 @@ function connect(set: (fn: (state: MeshState) => Partial<MeshState>) => void, ge
       payload: {
         id: source,
         name: 'Control Center',
-        capabilities: ['scene.*'],
+        capabilities: ['scene.*', 'director.*'],
       },
     });
     get().sendMessage({
@@ -88,6 +113,9 @@ function connect(set: (fn: (state: MeshState) => Partial<MeshState>) => void, ge
       const newScene = msg.payload.scene as string | undefined;
       if (newScene) set(() => ({ scene: newScene }));
     }
+    if (msg.topic.startsWith('world.')) {
+      get().handleWorldUpdate(msg);
+    }
   };
 
   ws.onclose = () => {
@@ -107,10 +135,12 @@ export const useMeshStore = create<MeshState>((set, get) => ({
   session: 'halloween-2026',
   scene: 'idle',
   estop: false,
+  family_mode: false,
   manifest: {},
   activeEffects: {},
   logs: [],
   selectedTopics: new Set(),
+  world: emptyWorld(),
 
   setConnected: (connected) => set({ connected }),
   setBrokerUrl: (brokerUrl) => {
@@ -180,6 +210,41 @@ export const useMeshStore = create<MeshState>((set, get) => ({
     });
   },
 
+  handleWorldUpdate: (msg) => {
+    const { topic, payload } = msg;
+    set((state) => {
+      const world = { ...state.world };
+      const zones = new Map(world.zones.map((z) => [z.zone, { ...z }]));
+
+      if (topic === 'world.audience.present') {
+        world.audience_present = true;
+      } else if (topic === 'world.audience.absent') {
+        world.audience_present = false;
+      } else if (topic === 'world.sun') {
+        // no UI state yet
+      } else if (topic === 'world.late_night') {
+        // no UI state yet
+      } else if (topic.startsWith('world.') && topic.endsWith('.occupied')) {
+        const zone = topic.slice('world.'.length, -'.occupied'.length);
+        const z = zones.get(zone) || { zone, occupied: false, count: 0, linger_s: 0 };
+        z.occupied = true;
+        z.count = (payload.count as number) || 1;
+        zones.set(zone, z);
+      } else if (topic.startsWith('world.') && topic.endsWith('.vacant')) {
+        const zone = topic.slice('world.'.length, -'.vacant'.length);
+        const z = zones.get(zone) || { zone, occupied: false, count: 0, linger_s: 0 };
+        z.occupied = false;
+        z.count = 0;
+        z.linger_s = 0;
+        zones.set(zone, z);
+      }
+
+      world.zones = DEFAULT_ZONES.map((zone) => zones.get(zone) || { zone, occupied: false, count: 0, linger_s: 0 });
+      world.linger_alert = world.zones.some((z) => z.occupied && z.linger_s >= 180);
+      return { world };
+    });
+  },
+
   clearLogs: () => set({ logs: [] }),
 
   sendMessage: (msg) => {
@@ -204,18 +269,45 @@ export const useMeshStore = create<MeshState>((set, get) => ({
 
   setSceneCommand: (scene) => {
     get().sendMessage({
-      topic: scene === 'estop' ? 'scene.estop' : 'scene.start',
+      topic: scene === 'estop' ? 'scene.estop' : scene === 'resume' ? 'scene.resume' : 'scene.start',
       source: 'control_center',
       payload: scene === 'estop' ? { active: true } : { scene },
     });
-    if (scene === 'resume') {
-      get().sendMessage({
-        topic: 'scene.resume',
-        source: 'control_center',
-        payload: {},
-      });
-    }
     set({ scene });
+  },
+
+  toggleFamilyMode: () => {
+    const next = !get().family_mode;
+    get().sendMessage({
+      topic: next ? 'scene.family_mode' : 'scene.spooky_mode',
+      source: 'control_center',
+      payload: { active: next },
+    });
+    set({ family_mode: next });
+  },
+
+  fireCannon: () => {
+    get().sendMessage({
+      topic: 'director.cannon.fire',
+      source: 'control_center',
+      payload: { reason: 'manual' },
+    });
+  },
+
+  nextPumpkinSong: () => {
+    get().sendMessage({
+      topic: 'director.pirate_button',
+      source: 'control_center',
+      payload: { action: 'next_song' },
+    });
+  },
+
+  testPortraitLine: () => {
+    get().sendMessage({
+      topic: 'pirate.speak',
+      source: 'control_center',
+      payload: { category: 'greeting', interruptible: true },
+    });
   },
 }));
 

@@ -43,3 +43,24 @@ export interface LogEntry {
   source: string;
   payload: string;
 }
+
+export interface ZoneView {
+  zone: string;
+  occupied: boolean;
+  count: number;
+  linger_s: number;
+}
+
+export interface WorldView {
+  scene: string;
+  family_mode: boolean;
+  audience_present: boolean;
+  pumpkins_singing: boolean;
+  portrait_speaking: boolean;
+  estop: boolean;
+  cannon_cooldown: boolean;
+  fog_cooldown: boolean;
+  thunder_cooldown: boolean;
+  linger_alert: boolean;
+  zones: ZoneView[];
+}
